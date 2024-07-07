@@ -1,0 +1,99 @@
+{0 LearnO}
+
+{@meta[
+{ libs: ["brr", "note", "note.brr"]
+}
+]}
+
+Let's figure out how to use the `note` library.
+
+{1 Stsuff x}
+
+Here's some stuff
+
+{2 M stuff}
+
+More stuff
+
+{2 Other stuff}
+
+
+{@ocaml deferred-js[
+(* code goes here *)
+open Brr
+open Note
+open Note_brr
+open Note_brr_kit
+
+let key_state id is_down =
+  let kbd = El.kbd [El.txt (Jstr.v id)] in
+  Elr.def_class (Jstr.v "down") is_down kbd;
+  kbd
+
+let key_dir down up =
+  let show_dir = El.span [] in
+  let show d _ = [El.txt' (match d with `Up -> "↑" | `Down -> "↓")] in
+  let dir = E.select [ E.map (show `Down) down; E.map (show `Up) up ] in
+  Elr.set_children show_dir ~on:dir;
+  show_dir
+
+let key_id ev =
+  let kbd = El.kbd [El.txt' "  "] in
+  let id e = [El.txt (Key.to_jstr e)] in
+  Elr.set_children kbd ~on:(E.map id ev);
+  kbd
+
+let key_viz evs = El.div [
+    El.p [ key_id (E.select [Key.any_down evs; Key.any_up evs ]);
+           key_dir (Key.any_down evs) (Key.any_up evs) ];
+    El.p [ key_state "Any" (Key.any_holds evs) ];
+    El.p [ key_state "Shift" (Key.shift evs);
+           key_state "L" (Key.holds evs (`Shift `Left));
+           key_state "R" (Key.holds evs (`Shift `Right)) ];
+    El.p [ key_state "Ctrl" (Key.ctrl evs);
+           key_state "L" (Key.holds evs (`Ctrl `Left));
+           key_state "R" (Key.holds evs (`Ctrl `Right)) ];
+    El.p [ key_state "Alt" (Key.alt evs);
+           key_state "L" (Key.holds evs (`Alt `Left));
+           key_state "R" (Key.holds evs (`Alt `Right)) ];
+    El.p [ key_state "Meta" (Key.meta evs);
+           key_state "L" (Key.holds evs (`Meta `Left));
+           key_state "R" (Key.holds evs (`Meta `Right)) ];
+    El.p [ key_state "Spacebar" (Key.holds evs `Spacebar);
+           key_dir (Key.down evs `Spacebar) (Key.up evs `Spacebar)];
+  ]
+
+let main () =
+  let h1 = El.h1 [El.txt' "Keyboard test"] in
+  let info = El.p [El.txt' "Hit your keyboard."] in
+  match Document.find_el_by_id G.document (Jstr.v "output-0") with
+  | Some el -> El.set_children el [h1; info; key_viz (Key.on_el el)]
+  | None -> Printf.eprintf "error\n%!"
+
+let () = main ();;
+][
+{%html: <script type="text/javascript">function
+id_1(a){"use strict";var
+p="R",D="key_state",B=256924770,C="key_dir",A=3256585,i=132,o=847852583,r=-921329427,z=858945253,y="main",x=114,u="key_viz",v=748795083,w="key_id",t=759637122,n=-57574468,m="L",k=a.jsoo_runtime;function
+e(a,b){return(a.l>=0?a.l:a.l=a.length)==1?a(b):k.caml_call_gen(a,[b])}function
+c(a,b,c){return(a.l>=0?a.l:a.l=a.length)==2?a(b,c):k.caml_call_gen(a,[b,c])}function
+g(a,b,c,d){return(a.l>=0?a.l:a.l=a.length)==3?a(b,c,d):k.caml_call_gen(a,[b,c,d])}function
+ah(a,b,c,d,e){return(a.l>=0?a.l:a.l=a.length)==4?a(b,c,d,e):k.caml_call_gen(a,[b,c,d,e])}var
+j=k.caml_get_global_data(),h=j.Toploop,d=j.Brr,b=j.Note_brr_kit,l=j.Note,q=j.Note_brr,ag=j.Stdlib__Printf;c(h[2],D,function(a,b){var
+f=k.caml_jsstring_of_string(a),h=[0,c(d[9][2],0,f),0],e=g(d[9][x],0,0,h);g(q[4][8],"down",b,e);return e});var
+E="\xe2\x86\x93",F="\xe2\x86\x91";c(h[2],C,function(a,b){var
+f=g(d[9][147],0,0,0);function
+h(a,b){var
+e=0,f=t<=a?E:F;return[0,c(d[9][3],0,f),e]}var
+i=19067,k=t,j=[0,c(l[3][9],function(a){return h(i,a)},b),0],m=[0,c(l[3][9],function(a){return h(k,a)},a),j],n=e(l[3][13],m);c(q[4][1],f,n);return f});var
+G="\xc2\xa0\xc2\xa0";c(h[2],w,function(a){var
+h=[0,c(d[9][3],0,G),0],f=g(d[9][x],0,0,h),i=c(l[3][9],function(a){var
+f=e(b[2][4],a);return[0,c(d[9][2],0,f),0]},a);c(q[4][1],f,i);return f});var
+H=e(h[1],w),s=e(h[1],C),f=e(h[1],D),I="Spacebar",J=[0,z,n],K=p,L=[0,z,o],M=m,N="Meta",O=[0,A,n],P=p,Q=[0,A,o],R=m,S="Alt",T=[0,v,n],U=p,V=[0,v,o],W=m,X="Ctrl",Y=[0,B,n],Z=p,_=[0,B,o],$=m,aa="Shift",ab="Any";c(h[2],u,function(a){var
+h=c(b[2][11],a,r),j=[0,c(s,c(b[2][10],a,r),h),0],k=[0,c(f,I,c(b[2][12],a,r)),j],m=[0,g(d[9][i],0,0,k),0],n=[0,c(f,K,c(b[2][12],a,J)),0],o=[0,c(f,M,c(b[2][12],a,L)),n],p=[0,c(f,N,e(b[2][15],a)),o],q=[0,g(d[9][i],0,0,p),m],t=[0,c(f,P,c(b[2][12],a,O)),0],u=[0,c(f,R,c(b[2][12],a,Q)),t],v=[0,c(f,S,e(b[2][13],a)),u],w=[0,g(d[9][i],0,0,v),q],x=[0,c(f,U,c(b[2][12],a,T)),0],y=[0,c(f,W,c(b[2][12],a,V)),x],z=[0,c(f,X,e(b[2][14],a)),y],A=[0,g(d[9][i],0,0,z),w],B=[0,c(f,Z,c(b[2][12],a,Y)),0],C=[0,c(f,$,c(b[2][12],a,_)),B],D=[0,c(f,aa,e(b[2][16],a)),C],E=[0,g(d[9][i],0,0,D),A],F=[0,c(f,ab,e(b[2][9],a)),0],G=[0,g(d[9][i],0,0,F),E],ac=e(b[2][8],a),ad=[0,c(s,e(b[2][7],a),ac),0],ae=[0,e(b[2][8],a),0],af=[0,e(b[2][7],a),ae],ag=[0,e(H,e(l[3][13],af)),ad],ah=[0,g(d[9][i],0,0,ag),G];return g(d[9][88],0,0,ah)});var
+ac=e(h[1],u),ad="Keyboard test",ae="Hit your keyboard.",af=[0,[11,"error\n",[10,0]],"error\n%!"];c(h[2],y,function(a){var
+j=[0,c(d[9][3],0,ad),0],k=g(d[9][98],0,0,j),l=[0,c(d[9][3],0,ae),0],m=g(d[9][i],0,0,l),f=c(d[10][2],d[16][2],"output-0");if(!f)return e(ag[3],af);var
+h=f[1],n=[0,k,[0,m,[0,e(ac,ah(b[2][6],0,0,0,h)),0]]];return c(d[9][18],h,n)});e(e(h[1],y),0);return 0}if(typeof
+module==="object"&&module.exports)module["exports"]=id_1;
+</script> %}
+]}

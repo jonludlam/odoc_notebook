@@ -1,0 +1,10 @@
+{0 Index3}
+
+{@ocaml[
+let x = 10
+]}
+
+
+{@ocaml[
+let _ = Printf.printf "Hello, world. x = %d\n" x
+]}

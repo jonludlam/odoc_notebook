@@ -1,0 +1,32 @@
+; (executable
+;  (modes js)
+;  (name main)
+;  (modules main)
+;  (promote (until-clean))
+;  (link_flags (-linkall))
+;  (libraries
+;   code-mirror
+;   astring
+;   js_top_worker-client_fut
+;   tyxml
+;   merlin-js.code-mirror
+;   toploop
+;   js_of_ocaml-lwt
+;   d3
+;   brr
+;   note.brr))
+
+(library
+ (name frontend)
+ (public_name odoc_notebook.frontend)
+ (modes byte)
+ (libraries
+  code-mirror
+  astring
+  js_top_worker-client_fut
+  tyxml
+  merlin-js.code-mirror
+  js_of_ocaml-lwt
+  d3
+  brr
+  note.brr))

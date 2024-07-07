@@ -1,0 +1,389 @@
+{0 D3}
+
+{@meta[
+{ libs: ["d3", "lwt", "js_of_ocaml-lwt"],
+  html_scripts: ["https://d3js.org/d3.v4.min.js"]
+}
+]}
+
+Here we go, let's try D3.
+
+{1 D3}
+
+Let's make some types first of all.
+
+{@ocaml deferred-js[
+open D3
+open Js_of_ocaml
+
+type twodim_point = {
+    i_x: float
+  ; i_y: float }
+
+type line = {
+    index: int (* starts at 0 *)
+  ; line: twodim_point list
+  ; highlight: bool }
+
+type lines = line list
+
+type paddings = {
+    top: float
+  ; right: float
+  ; left: float
+  ; bottom: float }
+
+open Js;;
+
+let _ = Printf.printf "Hello, world";;
+][
+{%html: <script type="text/javascript">function
+id_1(a){"use strict";return 0}if(typeof
+module==="object"&&module.exports)module["exports"]=id_1;
+</script> %}
+]}
+
+Now we need to do some bindings for things that the library doesn't do yet.
+
+{@ocaml deferred-js[
+module D3_libs = struct
+  let d3 () = Unsafe.global##.d3
+
+  let get_line () = (d3 ())##line
+
+  let get_scale s = match s with
+    | `scaleLinear -> (d3 ())##scaleLinear ()
+
+  let get_curve c = match c with
+    | `curveBasis -> fun x -> (d3 ())##curveBasis x
+    | `curveLinear -> fun x -> (d3 ())##curveLinear x
+
+  let get_axis c = match c with
+    | `Bottom -> fun x -> (d3 ())##axisBottom x
+    | `Left -> fun x -> (d3 ())##axisLeft x
+
+end;;
+][
+{%html: <script type="text/javascript">function
+id_2(a){"use strict";var
+d=a.jsoo_runtime;function
+f(a,b,c){return(a.l>=0?a.l:a.l=a.length)==2?a(b,c):d.caml_call_gen(a,[b,c])}var
+c=d.caml_get_global_data(),e=c.Js_of_ocaml__Js;function
+b(a){return e[52][1].d3}return f(c.Toploop[2],"D3_libs/967",[0,b,function(a){return d.caml_js_meth_call(b(0),"line",[0])},function(a){return d.caml_js_meth_call(b(0),"scaleLinear",[0,0])},function(a){return 234504180<=a?function(a){return d.caml_js_meth_call(b(0),"curveLinear",[0,a])}:function(a){return d.caml_js_meth_call(b(0),"curveBasis",[0,a])}},function(a){return 847852583<=a?function(a){return d.caml_js_meth_call(b(0),"axisLeft",[0,a])}:function(a){return d.caml_js_meth_call(b(0),"axisBottom",[0,a])}}])}if(typeof
+module==="object"&&module.exports)module["exports"]=id_2;
+</script> %}
+]}
+
+Some class types to make our lives easier:
+
+{@ocaml deferred-js[
+module Line = struct
+  class type data_point = object
+    method x : float readonly_prop
+    method y : float readonly_prop
+  end
+  type scaleU
+  class type scale = object
+    method range : float js_array t -> scale t meth
+    method domain : float js_array t -> scaleU t meth
+  end
+  class type axis = object
+    method scale : scale t -> axis t meth
+    method tickSize : int -> axis t meth
+    method tickSubdivide : bool -> axis t meth
+  end
+  class type line = object
+    method x : (line t, data_point t -> int -> float) meth_callback
+      -> line t meth
+    method y : (line t, data_point t -> int -> float) meth_callback
+      -> line t meth
+    method curve : (line t, 'a) meth_callback -> line t meth
+  end
+end;;
+][
+{%html: <script type="text/javascript">function
+id_3(a){"use strict";var
+d=a.jsoo_runtime;function
+b(a,b,c){return(a.l>=0?a.l:a.l=a.length)==2?a(b,c):d.caml_call_gen(a,[b,c])}return b(d.caml_get_global_data().Toploop[2],"Line/981",[0])}if(typeof
+module==="object"&&module.exports)module["exports"]=id_3;
+</script> %}
+]}
+
+Now we want to deal with some interactivity. Let's define an event type for
+highlighting specific lines in the chart.
+
+{@ocaml deferred-js[
+module Event = struct
+  type t =
+    | Highlight of int
+    | NoHighlight
+
+  let highlight (m:lines) i =
+    List.map
+      (fun l -> let highlight = l.index = i in { l with highlight })
+      m
+
+  let handle t m : lines = match t with
+    | Highlight i -> highlight m i
+    | NoHighlight -> highlight m (-1)
+
+end;;
+][
+{%html: <script type="text/javascript">function
+id_4(a){"use strict";var
+d=a.jsoo_runtime;function
+e(a,b,c){return(a.l>=0?a.l:a.l=a.length)==2?a(b,c):d.caml_call_gen(a,[b,c])}var
+b=d.caml_get_global_data(),f=b.Stdlib__List;function
+c(a,b){return e(f[20],function(a){return[0,a[1],a[2],a[1]===b?1:0]},a)}return e(b.Toploop[2],"Event/1062",[0,c,function(a,b){return a?c(b,a[1]):c(b,-1)}])}if(typeof
+module==="object"&&module.exports)module["exports"]=id_4;
+</script> %}
+]}
+
+With these defined, we can now get down to the business of drawing some lines.
+
+{@ocaml deferred-js[
+module View = struct
+  let palette_loop i =
+    let choices = [|
+        (* these colors are grouped by 2: strong tone followed by soft *)
+        "#1f7q8b4"; "#a6cee3"; (* blue *)
+        "#33a02c"; "#b2df8a"; (* green *)
+        "#e31a1c"; "#fb9a99"; (* red *)
+        "#ff7f00"; "#fdbf6f"; (* orange *)
+        "#6a3d9a"; "#cab2d6"; (* purple *)
+      |]
+    in
+    choices.(i mod 10)
+
+  let make_range ~range ~domain =
+    let obj = D3_libs.get_scale `scaleLinear in
+    ignore @@ obj##range (Js.array [| fst range; snd range |]);
+    ignore @@ obj##domain (Js.array [| fst domain; snd domain |]);
+    (fun (x:float) -> Js.Unsafe.fun_call obj [| Js.Unsafe.inject x |]), obj
+
+  let make_axis pos range_o m =
+    let a = (D3_libs.get_axis pos) range_o in
+    Js.Unsafe.fun_call a [|Js.Unsafe.inject m|]
+
+  let data_to_js (l: line) : Line.data_point t js_array t =
+    let curve_to_js { line=c } =
+      c
+      |> List.map
+        (fun (x: twodim_point) : Line.data_point t -> object%js
+            val x = x.i_x
+            val y = x.i_y
+          end)
+      |> Array.of_list
+      |> array
+    in
+
+   curve_to_js l
+
+  let line xrange yrange m: Line.line t =
+    let open D3_libs in
+    let l = get_line () in
+    ignore @@ l##x (fun (o:Line.data_point t) _ -> xrange o##.x);
+    ignore @@ l##y (fun (o:Line.data_point t) _ -> yrange o##.y);
+    ignore @@ l##curve (fun x -> get_curve `curveLinear x);
+    Js.Unsafe.fun_call l [|Js.Unsafe.inject m|]
+
+  let get_size size_ratio node =
+    (* take 100% of available width in [node] and relative height *)
+    let w = (Js.coerce node Dom_html.CoerceTo.div (fun _ -> assert false))
+        ##.clientWidth
+    in
+    let h = int_of_float @@ (float_of_int w) *. size_ratio in
+    w, h
+
+  let items ~size_ratio ~node ~pad ~data_preview f =
+    let open D3 in
+    let w, h = get_size size_ratio node in
+    let min_max l : float*float = match l with
+      | [] -> 0., 100.
+      | a :: [] -> a, a
+      | a :: b -> let ls = List.fast_sort compare (a::b) in
+          (List.hd ls), List.hd @@ List.rev ls
+    in
+    let map_tuple f = fun (a, b) -> (f a), f b in
+    let xdom, ydom =
+      map_tuple min_max @@
+      List.split @@ List.map (fun { i_x; i_y } -> i_x, i_y) @@
+      List.flatten @@ List.map (fun { line } -> line) data_preview
+    in
+    let ydom = (min (fst ydom) 0.), snd ydom in
+
+   let xrange = 0., (float_of_int @@ w) -. pad.right -. pad.left in
+    let xrange, xrange_o = make_range ~range:xrange ~domain:xdom in
+    let yrange = ((float_of_int h) -. pad.top -. pad.bottom), 0. in
+    let yrange, yrange_o = make_range ~range:yrange ~domain:ydom in
+    let stroke_width = "3" in
+    selectAll "path"
+    |. data (fun m _ -> m)
+    |- nest enter [
+        append "path"
+        |. str attr "fill" "none"
+        |. attr "stroke" (fun _ { index } _ -> palette_loop index)
+        |. str attr "stroke-linejoin" "round"
+        |. str attr "stroke-linecap" "round"
+        |. str attr "stroke-width" stroke_width
+        |. E.mouseover (fun _ { index } _ -> f (Event.Highlight index))
+        |. E.mouseout (fun _ _ _ -> f (Event.NoHighlight))
+        |. attr_obj "d" (fun _ m _ -> line xrange yrange @@ data_to_js m)
+      ]
+    |- nest enter [
+        static "g"
+        |. attr "transform" (fun _ _ _ -> Format.sprintf "translate(0,%.1f)"
+            ((float_of_int h) -. pad.top -. pad.bottom))
+        |. call (fun m _ -> make_axis `Bottom xrange_o m)
+      ]
+    |- nest enter [
+        static "g"
+        |. call (fun m _ -> make_axis `Left yrange_o m)
+      ]
+    |- nest update [
+        transition
+        |. fun_call "duration" (fun _ _ _ -> "200")
+        |. style "stroke-width"
+          (fun _ { highlight } _ -> if highlight then "15" else stroke_width)
+      ]
+ let make ~size_ratio ~node ~pad ~data_preview f =
+    let open D3 in
+    let w, h = get_size size_ratio node in
+    static "svg"
+    |. int attr "width" w
+    |. int attr "height" h
+    |. style "padding"
+      (fun _ _ _ -> Format.sprintf "%.1f %.1f %.1f %.1f"
+        pad.top pad.right pad.bottom pad.left)
+    |. static "g"
+    |- items ~size_ratio ~node ~data_preview ~pad f
+end;;
+
+][
+{%html: <script type="text/javascript">function
+id_5(a){"use strict";var
+w="round",A=140,v="x",u="y",t="path",e="g",s="stroke-width",h=a.jsoo_runtime;function
+g(a,b){return(a.l>=0?a.l:a.l=a.length)==1?a(b):h.caml_call_gen(a,[b])}function
+f(a,b,c){return(a.l>=0?a.l:a.l=a.length)==2?a(b,c):h.caml_call_gen(a,[b,c])}function
+j(a,b,c,d){return(a.l>=0?a.l:a.l=a.length)==3?a(b,c,d):h.caml_call_gen(a,[b,c,d])}function
+U(a,b,c,d,e,f){return(a.l>=0?a.l:a.l=a.length)==5?a(b,c,d,e,f):h.caml_call_gen(a,[b,c,d,e,f])}var
+b=h.caml_get_global_data(),y="3",k=b.Toploop,z=b.Stdlib__Format,c=b.D3,i=b.Stdlib__List;b.CamlinternalOO;var
+J=b.Stdlib,F=b.Assert_failure,G=b.Js_of_ocaml__Dom_html,H=b.Js_of_ocaml__Js,D=b.Stdlib__Array,d=g(k[1],"D3_libs/967"),x=[0,"#1f7q8b4","#a6cee3","#33a02c","#b2df8a","#e31a1c","#fb9a99","#ff7f00","#fdbf6f","#6a3d9a","#cab2d6"],B=u,C=v,E=[0,"",48,60],I=[0,0.,100.],N="15",O=s,Q="200",R="duration",X=e,aa=[0,[11,"translate(0,",[8,[0,0,0],0,[0,1],[12,41,0]]],"translate(0,%.1f)"],ab="transform",ad=e,ai="d",am=s,ao=w,ap="stroke-linecap",ar=w,as="stroke-linejoin",au="stroke",aw="none",ax="fill",az=t,aL=t,K=e,L=[0,[8,[0,0,0],0,[0,1],[12,32,[8,[0,0,0],0,[0,1],[12,32,[8,[0,0,0],0,[0,1],[12,32,[8,[0,0,0],0,[0,1],0]]]]]]],"%.1f %.1f %.1f %.1f"],M="padding",P="height",S="width",T="svg";function
+o(a){var
+b=a%10|0;return h.caml_check_bound(x.slice(),b)[1+b]}function
+l(a,b){var
+c=g(d[3],-660334577);h.caml_js_meth_call(c,"range",[0,h.caml_js_from_array([0,a[1],a[2]])]);h.caml_js_meth_call(c,"domain",[0,h.caml_js_from_array([0,b[1],b[2]])]);return[0,function(a){return h.caml_js_fun_call(c,[0,a])},c]}function
+m(a,b,c){return h.caml_js_fun_call(f(d[5],a,b),[0,c])}function
+p(a){var
+b=f(i[20],function(a){return h.caml_js_object([0,[0,C,a[1]],[0,B,a[2]]])},a[2]);return h.caml_js_from_array(g(D[10],b))}function
+q(i,e,c){var
+a=g(d[2],0);h.caml_js_meth_call(a,v,[0,function(a,b){return g(i,a.x)}]);h.caml_js_meth_call(a,u,[0,function(a,b){return g(e,a.y)}]);h.caml_js_meth_call(a,"curve",[0,function(a){return f(d[4],234504180,a)}]);return h.caml_js_fun_call(a,[0,c])}function
+n(a,b){var
+c=j(H[48],b,G[118][15],function(a){throw h.caml_maybe_attach_backtrace([0,F,E],1)}).clientWidth;return[0,c,c*a|0]}function
+r(a,b,k,d,e){var
+r=n(a,b),s=r[2];function
+t(a){if(!a)return I;var
+b=a[1];if(!a[2])return[0,b,b];var
+c=f(i[61],function(a,b){return h.caml_float_compare(a,b)},[0,b,a[2]]),d=g(i[10],c),e=g(i[6],d);return[0,g(i[6],c),e]}var
+B=f(i[20],function(a){return a[2]},d),C=g(i[15],B),D=f(i[20],function(a){return[0,a[1],a[2]]},C),u=g(i[57],D),v=t(u[2]),E=t(u[1]),F=v[2],G=[0,f(J[16],v[1],0.),F],w=l([0,0.,r[1]-k[2]-k[3]],E),H=w[2],K=w[1],x=l([0,s-k[1]-k[4],0.],G),L=x[2],M=x[1],P=f(c[6],O,function(a,b,c){return b[3]?N:y}),S=f(c[33],R,function(a,b,c){return Q}),T=f(c[23],c[32],S),U=[0,f(c[23],T,P),0],V=f(c[28],c[18],U),W=g(c[16],function(a,b){return m(847852583,L,a)}),Y=g(c[13],X),Z=[0,f(c[23],Y,W),0],_=f(c[28],c[17],Z),$=g(c[16],function(a,b){return m(437082891,H,a)}),ac=f(c[3],ab,function(a,b,c){return f(z[A],aa,s-k[1]-k[4])}),ae=g(c[13],ad),af=f(c[23],ae,ac),ag=[0,f(c[23],af,$),0],ah=f(c[28],c[17],ag),aj=f(c[4],ai,function(a,b,c){return q(K,M,p(b))}),ak=g(c[34][7],function(a,b,c){return g(e,0)}),al=g(c[34][5],function(a,b,c){return g(e,[0,b[1]])}),an=j(c[29],c[3],am,y),aq=j(c[29],c[3],ap,ao),at=j(c[29],c[3],as,ar),av=f(c[3],au,function(a,b,c){return o(b[1])}),ay=j(c[29],c[3],ax,aw),aA=g(c[10],az),aB=f(c[23],aA,ay),aC=f(c[23],aB,av),aD=f(c[23],aC,at),aE=f(c[23],aD,aq),aF=f(c[23],aE,an),aG=f(c[23],aF,al),aH=f(c[23],aG,ak),aI=[0,f(c[23],aH,aj),0],aJ=f(c[28],c[17],aI),aK=g(c[14],function(a,b){return a}),aM=g(c[2],aL),aN=f(c[23],aM,aK),aO=f(c[25],aN,aJ),aP=f(c[25],aO,ah),aQ=f(c[25],aP,_);return f(c[25],aQ,V)}return f(k[2],"View/2194",[0,o,l,m,p,q,n,r,function(a,b,h,d,e){var
+i=n(a,b),k=r(a,b,h,d,e),l=g(c[13],K),m=f(c[6],M,function(a,b,c){return U(z[A],L,h[1],h[2],h[4],h[3])}),o=j(c[30],c[3],P,i[2]),p=j(c[30],c[3],S,i[1]),q=g(c[13],T),s=f(c[23],q,p),t=f(c[23],s,o),u=f(c[23],t,m),v=f(c[23],u,l);return f(c[25],v,k)}])}if(typeof
+module==="object"&&module.exports)module["exports"]=id_5;
+</script> %}
+]}
+
+Let's have a function to draw:
+
+{@ocaml deferred-js[
+let n_random_curves n =
+  let rec range debut fin tl =
+    if fin > debut
+    then range debut (fin - 1) (fin :: tl)
+    else debut :: tl
+  in
+  List.map
+    (fun i ->
+      {
+        highlight = false;
+        index = i-1;
+        line = List.map
+          (fun x -> {
+            i_x = float_of_int x;
+            i_y = 0.5 *. (float_of_int i) *. (float_of_int x ** 3.)
+             })
+          (range 1 100 [])
+      }
+    )
+    (range 1 n [])
+;;
+][
+{%html: <script type="text/javascript">function
+id_6(a){"use strict";var
+d=a.jsoo_runtime;function
+b(a,b,c){return(a.l>=0?a.l:a.l=a.length)==2?a(b,c):d.caml_call_gen(a,[b,c])}var
+c=d.caml_get_global_data(),e=c.Stdlib__List;return b(c.Toploop[2],"n_random_curves",function(a){function
+c(a,b,c){var
+d=b,e=c;for(;;){if(a>=d)return[0,a,e];var
+f=[0,d,e],d=d-1|0,e=f}}var
+d=c(1,a,0);return b(e[20],function(d){var
+a=c(1,100,0);return[0,d-1|0,b(e[20],function(a){return[254,a,0.5*d*Math.pow(a,3.)]},a),0]},d)})}if(typeof
+module==="object"&&module.exports)module["exports"]=id_6;
+</script> %}
+]}
+
+And now let's draw it!
+
+{@ocaml deferred-js[
+open Lwt
+open Js_of_ocaml_lwt
+
+let make_stream () =
+  let stream, push = Lwt_stream.create () in
+  stream, (fun x -> push (Some x)), (fun () -> push None)
+
+let fold_stream ~stream ~handler ~node ~view ~data =
+  Lwt_stream.fold_s
+    (fun e m ->
+      let m' = handler e m in
+      D3.run ~node view m';
+      Lwt.return m')
+    stream data
+
+let async_draw_update ~size_ratio ~node ~pad data () =
+  let stream, push, _ = make_stream () in
+  let view = View.make ~size_ratio ~node ~pad ~data_preview:data push in
+  D3.run ~node view data;
+  Lwt.bind (fold_stream ~handler:(Event.handle) ~node ~view ~data ~stream)
+    (fun _ -> Lwt.return ())
+
+let _ =
+  let size_ratio = 0.5 in
+  let node = match (Dom_html.getElementById_opt "output-6") with
+    | Some d -> d
+    | _ -> assert false
+  in
+  let pad = {top=40.; bottom=40.; right=120.; left=150.} in
+  let data = n_random_curves 6 in
+  Lwt_js_events.async (async_draw_update ~size_ratio ~node ~pad data)
+;;
+][
+{%html: <script type="text/javascript">function
+id_7(a){"use strict";var
+p=40.,o="async_draw_update",n="fold_stream",e="make_stream",g=a.jsoo_runtime;function
+f(a,b){return(a.l>=0?a.l:a.l=a.length)==1?a(b):g.caml_call_gen(a,[b])}function
+h(a,b,c){return(a.l>=0?a.l:a.l=a.length)==2?a(b,c):g.caml_call_gen(a,[b,c])}function
+j(a,b,c,d){return(a.l>=0?a.l:a.l=a.length)==3?a(b,c,d):g.caml_call_gen(a,[b,c,d])}function
+E(a,b,c,d,e){return(a.l>=0?a.l:a.l=a.length)==4?a(b,c,d,e):g.caml_call_gen(a,[b,c,d,e])}function
+m(a,b,c,d,e,f){return(a.l>=0?a.l:a.l=a.length)==5?a(b,c,d,e,f):g.caml_call_gen(a,[b,c,d,e,f])}var
+c=g.caml_get_global_data(),b=c.Toploop,i=c.Lwt,l=c.D3,k=c.Lwt_stream,x=c.Js_of_ocaml__Dom_html,D=c.Assert_failure,B=c.Js_of_ocaml_lwt__Lwt_js_events;h(b[2],e,function(a){var
+b=f(k[4],0),c=b[2];return[0,b[1],function(a){return f(c,[0,a])},function(a){return f(c,0)}]});h(b[2],n,function(a,g,c,d,e){return j(k[47],function(a,b){var
+e=h(g,a,b);j(l[35],[0,c],d,e);return f(i[4],e)},a,e)});var
+q=f(b[1],n),r=f(b[1],e),s=f(b[1],"View/2194"),t=f(b[1],"Event/1062");h(b[2],o,function(a,b,c,d,e){var
+g=f(r,0),k=m(s[8],a,b,c,d,g[2]);j(l[35],[0,b],k,d);var
+n=m(q,g[1],t[2],b,k,d);return h(i[6],n,function(a){return f(i[4],0)})});var
+u=f(b[1],o),v=f(b[1],"n_random_curves"),d=f(x[3],"output-6"),C=[0,"",27,11],z=[254,p,120.,150.,p],w=0.5;if(!d)throw g.caml_maybe_attach_backtrace([0,D,C],1);var
+y=d[1],A=E(u,w,y,z,f(v,6));return f(B[5],A)}if(typeof
+module==="object"&&module.exports)module["exports"]=id_7;
+</script> %}
+]}
+
+

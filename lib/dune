@@ -1,0 +1,4 @@
+(library
+ (name odoc_notebook)
+ (modes byte)
+ (libraries code-mirror))
