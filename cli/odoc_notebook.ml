@@ -84,7 +84,7 @@ let cmi_files dir =
       if Fpath.has_ext ".cmi" path then Fpath.filename path :: acc else acc)
     [] dir
 
-let gen_json cmis =
+let gen_cmis cmis =
   let all_cmis =
     List.map snd cmis |> List.flatten
     |> List.map (fun s -> String.sub s 0 (String.length s - 4))
@@ -101,24 +101,14 @@ let gen_json cmis =
       hidden
   in
   let prefixes = Util.StringSet.of_list prefixes in
-  let cmis =
-    {
-      Js_top_worker_rpc.Toplevel_api_gen.static_cmis = [];
-      dynamic_cmis =
-        [
-          {
-            dcs_url = "cmis/";
-            dcs_toplevel_modules = List.map String.capitalize_ascii non_hidden;
-            dcs_file_prefixes = Util.StringSet.to_list prefixes;
-          };
-        ];
-    }
-  in
-  let rpc =
-    Rpcmarshal.marshal Js_top_worker_rpc.Toplevel_api_gen.typ_of_cmis cmis
-  in
-  let json = Jsonrpc.to_string rpc in
-  json
+  Format.asprintf {|{
+  static_cmis=[];
+  dynamic_cmis=
+    [{dcs_url="cmis/";
+      dcs_toplevel_modules = [%s];
+      dcs_file_prefixes = [%s];}]} |}
+      (String.concat ";" (List.map (fun m -> "\"" ^ String.capitalize_ascii m ^ "\"") non_hidden))
+      (String.concat ";" (List.map (fun m -> "\"" ^ m ^ "\"") (Util.StringSet.to_list prefixes)))
 
 let generate_page mld =
   let cwd = Fpath.v "." in
@@ -185,10 +175,13 @@ let generate output_dir_str files =
   Printf.fprintf worker_oc "%s" (Odoc_notebook_crunch.read "worker.js" |> Option.get) ;
   close_out worker_oc;
   ignore (Odoc.support_files Fpath.(output_dir / "assets"));
-  let init_json = gen_json cmis in
+  let init_cmis = gen_cmis cmis in
   List.iter (fun mld -> generate_page mld) files;
   List.iter
     (fun mld ->
+      let meta = meta_of_mld mld in
+      let libs_list = match meta with | None -> ["stdlib"] | Some l -> "stdlib" :: l.libs in
+      let libs = Util.StringSet.of_list libs_list in
       let x = String.sub mld 0 (String.length mld - 4) in
       let odoc_file = "page-" ^ x ^ ".odoc" in
       let odocl_file = odoc_file ^ "l" in
@@ -205,6 +198,8 @@ let generate output_dir_str files =
       let json_file =
         Fpath.(v "html" / "notebooks" / (x ^ ".html.json") |> to_string)
       in
+      Mk_frontend.mk init_cmis libs Fpath.(output_dir / "assets") ("frontend_"^x);
+
       let ic = open_in json_file in
       let yojson = Yojson.Safe.from_channel ic in
       Format.eprintf "Here we go...\n%!";
@@ -226,11 +221,7 @@ let generate output_dir_str files =
         </li>
       </ul>|}
         in
-        Format.eprintf "Got here...\n%!";
-        let post_content = Printf.sprintf {|
-<script type="text/javascript" defer>
-globalThis.cmis = %S;
-</script>|} init_json in
+        let post_content = "" in
         let* html =
           Html_page.(
             create
@@ -240,11 +231,11 @@ globalThis.cmis = %S;
                 toc;
                 odoc_assets_path = "../assets";
                 preamble = json.preamble;
+                frontend = "frontend_"^x^".js";
                 content = json.content;
                 post_content;
               })
         in
-        Format.eprintf "Alll good here!\n%!";
         let oc =
           open_out Fpath.(v "html" / "notebooks" / (x ^ ".html") |> to_string)
         in

@@ -9,11 +9,7 @@ let template =
   <meta name="generator" content="odoc-notebook %%VERSION%%" />
   <meta name="viewport" content=
   "width=device-width,initial-scale=1.0" />
-  <script src="{{{odoc_assets_path}}}/highlight.pack.js"></script>
-  <script type="text/javascript">
-  hljs.initHighlightingOnLoad();
-  </script>
-  <script src="{{{odoc_assets_path}}}/main.bc.js" type="module"></script>
+  <script src="{{{odoc_assets_path}}}/{{frontend}}" type="module"></script>
 </head>
 <body class="odoc">
   <nav class="odoc-nav">{{{breadcrumbs}}}</nav>
@@ -29,6 +25,7 @@ type spec = {
   odoc_assets_path : string;
   breadcrumbs : string;
   preamble : string;
+  frontend : string;
   toc : string;
   content : string;
   post_content : string;
@@ -40,6 +37,7 @@ let create
       odoc_assets_path;
       breadcrumbs;
       preamble;
+      frontend;
       toc;
       content;
       post_content;
@@ -51,6 +49,7 @@ let create
         ("odoc_assets_path", `String odoc_assets_path);
         ("breadcrumbs", `String breadcrumbs);
         ("preamble", `String preamble);
+        ("frontend", `String frontend);
         ("toc", `String toc);
         ("content", `String content);
         ("post_content", `String post_content);

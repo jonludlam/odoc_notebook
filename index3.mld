@@ -1,10 +1,28 @@
 {0 Index3}
 
-{@ocaml[
-let x = 10
+{@meta[
+{ libs: [ "bonsai", "bonsai.web" ],
+  html_scripts: ["https://d3js.org/d3.v4.min.js"]
+}
+]}
+
+{@ocaml deferred-js[
+open! Core
+open! Bonsai_web
+
+let component = Bonsai.const (Vdom.Node.text "hello world")
+let () = Bonsai_web.Start.start component;;
+][
+{%html: <script type="text/javascript">function
+id_1(a){"use strict";var
+f="component",e=a.jsoo_runtime;function
+c(a,b){return(a.l>=0?a.l:a.l=a.length)==1?a(b):e.caml_call_gen(a,[b])}function
+l(a,b,c){return(a.l>=0?a.l:a.l=a.length)==2?a(b,c):e.caml_call_gen(a,[b,c])}function
+m(a,b,c,d){return(a.l>=0?a.l:a.l=a.length)==3?a(b,c,d):e.caml_call_gen(a,[b,c,d])}var
+b=e.caml_get_global_data(),d=b.Toploop,h=b.Bonsai,k=b.Bonsai_web__Start,g=c(b.Virtual_dom__Node[5],"hello world"),i=c(h[6],g);l(d[2],f,i);var
+j=c(d[1],f);m(k[2][3],0,0,j);return 0}if(typeof
+module==="object"&&module.exports)module["exports"]=id_1;
+</script> %}
 ]}
 
 
-{@ocaml[
-let _ = Printf.printf "Hello, world. x = %d\n" x
-]}

@@ -20,6 +20,7 @@
  (name frontend)
  (public_name odoc_notebook.frontend)
  (modes byte)
+ (modules frontend)
  (libraries
   code-mirror
   astring
@@ -29,4 +30,11 @@
   js_of_ocaml-lwt
   d3
   brr
-  note.brr))
+  note.brr
+  toploop))
+
+(library
+ (name toploop)
+ (public_name odoc_notebook.toploop)
+ (modules toploop)
+ (wrapped false))
