@@ -99,7 +99,7 @@ module S : Impl.S = struct
   let sync_get _ = None
   let create_file ~name:_ ~content:_ = failwith "Not implemented"
   let import_scripts _ = failwith "Unimplemented"
-  let init_function _ = failwith "Unimplemented" 
+  let init_function _ = failwith "Unimplemented"
 end
 
 module U = Impl.Make (S)

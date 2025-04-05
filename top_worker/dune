@@ -11,7 +11,7 @@
  (modes byte)
  (modules worker)
  (link_flags (-linkall))
- (libraries js_top_worker-web logs.browser))
+ (libraries js_top_worker-web logs.browser tyxml))
 
 (executable
  (name unix_worker)
@@ -35,6 +35,7 @@
    --toplevel
    ; --pretty
    --no-cmis
+   --effects=cps
    +toplevel.js
    +dynlink.js
    stubs.js

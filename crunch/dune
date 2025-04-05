@@ -15,5 +15,4 @@
    (run ocaml-crunch . -e js -o odoc_notebook_crunch.ml -m plain))))
 
 (library
- (name odoc_notebook_crunch)
- )
+ (name odoc_notebook_crunch))
