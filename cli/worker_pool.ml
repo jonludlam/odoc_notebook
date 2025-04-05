@@ -7,12 +7,14 @@ type request = {
   output_file : Fpath.t option;
 }
 
-type response = (string list, exn) result
+type response = (Run.t, exn) result
 type resolver = response Eio.Promise.u
 type t = (request * resolver) Eio.Stream.t
 
 let stream : t = Eio.Stream.create 0
 let handle_job env request output_file = Run.run env request output_file
+
+exception Worker_failure of Run.t
 
 let rec run_worker env id : unit =
   let { request; output_file; description = _ }, reply =
@@ -20,7 +22,9 @@ let rec run_worker env id : unit =
   in
   (try
      let result = handle_job env request output_file in
-     Promise.resolve reply (Ok result)
+     match result.status with
+     | `Exited 0 -> Promise.resolve reply (Ok result)
+     | _ -> Promise.resolve_error reply (Worker_failure result)
    with e -> Promise.resolve_error reply e);
   run_worker env id
 
@@ -37,7 +41,7 @@ let start_workers env sw n =
           `Stop_daemon
         with Stdlib.Exit -> `Stop_daemon)
   in
-  for i = 1 to n do
-    spawn_worker (Printf.sprintf "%d" i)
+  for i = 0 to n - 1 do
+    spawn_worker i
   done;
   ()

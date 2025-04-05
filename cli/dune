@@ -1,18 +1,8 @@
 (executable
  (name odoc_notebook)
- (public_name odoc-notebook)
+ (public_name odoc_notebook)
  (preprocess
   (pps ppx_deriving_yojson))
- (libraries
-  cmdliner
-  bos
-  opam-format
-  findlib
-  odoc-parser
-  yojson
-  js_top_worker-rpc
-  eio_main
-  logs
-  logs.fmt
-  mustache
-  odoc_notebook_crunch))
+ (modes byte)
+ (link_flags (-linkall))
+ (libraries cmdliner odoc_notebook_lib))

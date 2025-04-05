@@ -1,4 +1,24 @@
 (library
- (name odoc_notebook)
+ (name odoc_notebook_lib)
  (modes byte)
- (libraries code-mirror))
+ (preprocess
+  (pps ppx_deriving_yojson))
+ (libraries
+  compiler-libs.common
+  compiler-libs.bytecomp
+  bos
+  opam-format
+  findlib
+  odoc-parser
+  yojson
+  js_top_worker-rpc
+  eio_main
+  logs
+  logs.fmt
+  mustache
+  odoc_notebook_crunch
+  js_top_worker
+  tyxml
+  base64
+  imagelib
+  rpclib.core))

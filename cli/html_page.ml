@@ -6,15 +6,46 @@ let template =
   <title>{{{title}}}</title>
   <meta charset="utf-8" />
   <link rel="stylesheet" href="{{{odoc_assets_path}}}/odoc.css" />
+  <link rel="stylesheet" href="{{{odoc_assets_path}}}/odoc-notebook.css" />
   <meta name="generator" content="odoc-notebook %%VERSION%%" />
   <meta name="viewport" content=
   "width=device-width,initial-scale=1.0" />
+  <link rel="stylesheet" href="{{{odoc_assets_path}}}/katex.min.css" />
+  <script src="{{{odoc_assets_path}}}/katex.min.js"></script>
   <script src="{{{odoc_assets_path}}}/{{frontend}}" type="module"></script>
+  <script>
+  //<![CDATA[
+
+          document.addEventListener("DOMContentLoaded", function () {
+            var elements = Array.from(document.getElementsByClassName("odoc-katex-math"));
+            for (var i = 0; i < elements.length; i++) {
+              var el = elements[i];
+              var content = el.textContent;
+              var new_el = document.createElement("span");
+              new_el.setAttribute("class", "odoc-katex-math-rendered");
+              var display = el.classList.contains("display");
+              katex.render(content, new_el, { throwOnError: false, displayMode: display });
+              el.replaceWith(new_el);
+            }
+          });
+        
+//]]>
+</script>
 </head>
 <body class="odoc">
   <nav class="odoc-nav">{{{breadcrumbs}}}</nav>
-  <header class="odoc-preamble">{{{preamble}}}</header>
-  <nav class="odoc-toc">{{{toc}}}</nav>
+  <div class="odoc-search">
+    <div class="search-inner">
+      <input class="search-bar" placeholder=
+      "🔎 Type '/' to search..." />
+      <div class="search-snake"></div>
+      <div class="search-result"></div>
+    </div>
+  </div>
+  <header class="odoc-preamble">{{{header}}}{{{preamble}}}</header>
+  <div class="odoc-tocs">
+    <nav class="odoc-toc odoc-local-toc">{{{localtoc}}}</nav>
+    <nav class="odoc-toc odoc-global-toc">{{{globaltoc}}}</nav>
   <div class="odoc-content">{{{content}}}</div>
   {{{post_content}}}
 </body>
@@ -22,11 +53,13 @@ let template =
 
 type spec = {
   title : string;
+  header : string;
   odoc_assets_path : string;
   breadcrumbs : string;
   preamble : string;
   frontend : string;
-  toc : string;
+  localtoc : string;
+  globaltoc : string;
   content : string;
   post_content : string;
 }
@@ -34,11 +67,13 @@ type spec = {
 let create
     {
       title;
+      header;
       odoc_assets_path;
       breadcrumbs;
       preamble;
       frontend;
-      toc;
+      localtoc;
+      globaltoc;
       content;
       post_content;
     } =
@@ -46,11 +81,13 @@ let create
     `O
       [
         ("title", `String title);
+        ("header", `String header);
         ("odoc_assets_path", `String odoc_assets_path);
         ("breadcrumbs", `String breadcrumbs);
         ("preamble", `String preamble);
         ("frontend", `String frontend);
-        ("toc", `String toc);
+        ("localtoc", `String localtoc);
+        ("globaltoc", `String globaltoc);
         ("content", `String content);
         ("post_content", `String post_content);
       ]

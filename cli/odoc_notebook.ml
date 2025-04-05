@@ -17,19 +17,18 @@
 
 open Cmdliner
 
-type meta = {
-  libs : string list; [@default []]
-  html_scripts : string list; [@default []]
-}
-[@@deriving yojson]
-
 type breadcrumb = { name : string; href : string; kind : string }
 [@@deriving yojson]
 
 type toc = { title : string; href : string; children : toc list }
 [@@deriving yojson]
 
+type node = { url : string option; kind : string option; content : string }
+and 'a tree = { node : 'a; children : 'a tree list }
+and sidebar = node tree list [@@deriving yojson]
+
 type as_json = {
+  header : string;
   type_ : string; [@key "type"]
   uses_katex : bool;
   breadcrumbs : breadcrumb list;
@@ -39,44 +38,6 @@ type as_json = {
   content : string;
 }
 [@@deriving yojson]
-
-let meta_of_mld mld_file =
-  let ic = open_in mld_file in
-  let lines = Util.lines_of_channel ic in
-  close_in ic;
-  let text = String.concat "\n" lines in
-  let location =
-    { Lexing.pos_fname = mld_file; pos_lnum = 1; pos_bol = 0; pos_cnum = 0 }
-  in
-  let parsed = Odoc_parser.parse_comment ~location ~text in
-  let meta_block =
-    List.filter_map
-      (fun block ->
-        let open Odoc_parser in
-        match block with
-        | { Loc.value = `Code_block c; _ } -> (
-            match c.Ast.meta with
-            | None -> None
-            | Some m ->
-                if m.Ast.language.value = "meta" then Some c.content.value
-                else None)
-        | _ -> None)
-      (Odoc_parser.ast parsed)
-  in
-  let meta =
-    match meta_block with
-    | [] -> None
-    | x :: _ :: _ ->
-        Format.eprintf
-          "Warning, more than one meta block found. Ignoring all but the first.";
-        Some x
-    | [ meta ] -> Some meta
-  in
-  match meta with
-  | None -> None
-  | Some meta -> (
-      let y = Yojson.Safe.from_string meta in
-      match meta_of_yojson y with Ok m -> Some m | _ -> None)
 
 let cmi_files dir =
   Bos.OS.Dir.fold_contents ~traverse:`None ~elements:`Files
@@ -101,21 +62,25 @@ let gen_cmis cmis =
       hidden
   in
   let prefixes = Util.StringSet.of_list prefixes in
-  Format.asprintf {|{
+  Format.asprintf
+    {|{
   static_cmis=[];
   dynamic_cmis=
     [{dcs_url="cmis/";
       dcs_toplevel_modules = [%s];
       dcs_file_prefixes = [%s];}]} |}
-      (String.concat ";" (List.map (fun m -> "\"" ^ String.capitalize_ascii m ^ "\"") non_hidden))
-      (String.concat ";" (List.map (fun m -> "\"" ^ m ^ "\"") (Util.StringSet.to_list prefixes)))
+    (String.concat ";"
+       (List.map (fun m -> "\"" ^ String.capitalize_ascii m ^ "\"") non_hidden))
+    (String.concat ";"
+       (List.map (fun m -> "\"" ^ m ^ "\"") (Util.StringSet.to_list prefixes)))
 
-let generate_page mld =
-  let cwd = Fpath.v "." in
-  Odoc.compile ~output_dir:cwd ~includes:Fpath.Set.empty
-    ~input_file:(Fpath.v mld) ~parent_id:"notebooks"
+let generate_page parent_id mld =
+  Odoc.compile ~output_dir:(Fpath.v "_odoc") ~includes:Fpath.Set.empty
+    ~input_file:(Fpath.v mld)
+    ~parent_id
+    ~warnings_tag:(Some "odoc_notebook") ~ignore_output:true
 
-let generate output_dir_str files =
+let generate output_dir_str odoc_dir files =
   let verbose = true in
   Eio_main.run @@ fun env ->
   Eio.Switch.run @@ fun sw ->
@@ -123,15 +88,29 @@ let generate output_dir_str files =
   Logs.set_reporter (Logs_fmt.reporter ());
   let () = Worker_pool.start_workers env sw 16 in
   let output_dir = Fpath.v output_dir_str in
-  let metas = List.filter_map (fun f -> meta_of_mld f) files in
-  let libs =
+  let metas =
+    List.filter_map (fun f -> Odoc_notebook_lib.Mld.meta_of_mld f) files
+  in
+  let mld_libs =
     List.fold_left
-      (fun acc meta -> Util.StringSet.(union (of_list meta.libs) acc))
+      (fun acc meta ->
+        Util.StringSet.(union (of_list meta.Odoc_notebook_lib.Mld.libs) acc))
       (Util.StringSet.singleton "stdlib")
       metas
   in
+  let lib_map =
+      let ic = open_in Fpath.(odoc_dir / "lib_map.json" |> Fpath.to_string) in
+      let yojson = Yojson.Safe.from_channel ic in
+      let lib_map = Yojson.Safe.Util.to_assoc yojson in
+      let get_str x =
+        Fpath.(odoc_dir // (Yojson.Safe.Util.to_string x |> Fpath.v))
+      in
+      List.fold_left
+        (fun acc (k, v) -> Util.StringMap.add k (get_str v) acc)
+        Util.StringMap.empty lib_map
+  in
   let cmi_dirs =
-    match Ocamlfind.deps (Util.StringSet.to_list libs) with
+    match Ocamlfind.deps (Util.StringSet.to_list mld_libs) with
     | Ok libs ->
         let dirs =
           List.filter_map
@@ -171,73 +150,162 @@ let generate output_dir_str files =
     (* Format.eprintf "@[<hov 2>dir: %a [%a]@]\n%!" Fpath.pp dir (Fmt.list ~sep:Fmt.sp Fmt.string) files) cmis; *)
     Ok ()
   in
-  let worker_oc = open_out Fpath.(output_dir / "assets" / "worker.js" |> to_string) in
-  Printf.fprintf worker_oc "%s" (Odoc_notebook_crunch.read "worker.js" |> Option.get) ;
+  let worker_oc =
+    open_out Fpath.(output_dir / "assets" / "worker.js" |> to_string)
+  in
+  Printf.fprintf worker_oc "%s"
+    (Odoc_notebook_crunch.read "worker.js" |> Option.get);
   close_out worker_oc;
+  let notebook_css =
+    open_out Fpath.(output_dir / "assets" / "odoc-notebook.css" |> to_string)
+  in
+  Printf.fprintf notebook_css "%s" Notebook_css.notebook_css;
+  close_out notebook_css;
   ignore (Odoc.support_files Fpath.(output_dir / "assets"));
   let init_cmis = gen_cmis cmis in
-  List.iter (fun mld -> generate_page mld) files;
+  List.iter (fun mld ->
+    let (dir, file) = Fpath.split_base (Fpath.v mld) in
+    let parent_id =
+      Odoc.Id.of_fpath Fpath.(normalize (append (v "notebooks") dir))
+    in
+    generate_page parent_id mld) files;
   List.iter
     (fun mld ->
-      let meta = meta_of_mld mld in
-      let libs_list = match meta with | None -> ["stdlib"] | Some l -> "stdlib" :: l.libs in
-      let libs = Util.StringSet.of_list libs_list in
-      let x = String.sub mld 0 (String.length mld - 4) in
-      let odoc_file = "page-" ^ x ^ ".odoc" in
-      let odocl_file = odoc_file ^ "l" in
-      let _ =
-        Odoc.link
-          ~input_file:Fpath.(v "notebooks" / odoc_file)
-          ~includes:Fpath.Set.empty ()
+      let meta = Odoc_notebook_lib.Mld.meta_of_mld mld in
+      let dir, file = Fpath.split_base (Fpath.v mld) in
+      let libs_list =
+        match meta with None -> [ "stdlib" ] | Some l -> "stdlib" :: l.libs
       in
+      let libs =
+        List.map
+          (fun lib_name -> (lib_name, Util.StringMap.find lib_name lib_map))
+          libs_list
+      in
+      let x = Fpath.set_ext ".odoc" file in
+      let odoc_file = "page-" ^ (Fpath.to_string x) in
+      let odoc_path = Fpath.(append (odoc_dir / "notebooks") dir) in
+      Odoc.link
+        ~input_file:Fpath.(odoc_path / odoc_file)
+        ~libs ~docs:[] ~includes:[] ~ignore_output:true ~custom_layout:true
+        ~warnings_tags:[ "odoc_notebook" ] ())
+    files;
+
+  Odoc.compile_index ~json:false
+    ~roots:[ odoc_dir ]
+    ~simplified:false ~wrap:false
+    ~output_file:(Fpath.v "index.odoc-index")
+    ();
+
+  Odoc.sidebar_generate ~output_file:(Fpath.v "sidebar.json") ~json:true
+    (Fpath.v "index.odoc-index")
+    ();
+
+  let sidebar =
+    let ic = open_in "sidebar.json" in
+    let yojson = Yojson.Safe.from_channel ic in
+    let result = sidebar_of_yojson yojson in
+    close_in ic;
+    result
+  in
+  let () =
+    match sidebar with
+    | Ok _ -> ()
+    | Error e ->
+        Format.eprintf "Failed to parse sidebar: %s\n%!" e;
+        ()
+  in
+  let sidebar = Result.value ~default:[] sidebar in
+
+  let globaltoc =
+    match sidebar with
+    | [] ->
+        Format.eprintf "No global sidebar found\n%!";
+        ""
+    | _ ->
+        let rec aux tree =
+          let children = List.map aux tree.children in
+          let children =
+            if List.length children > 0 then
+              Printf.sprintf "<ul>%s</ul>" (String.concat "" children)
+            else ""
+          in
+          let content =
+            match tree.node.url with
+            | Some url ->
+                Printf.sprintf "<a href=\"/%s\">%s</a>" url tree.node.content
+            | None -> tree.node.content
+          in
+          Printf.sprintf "<li>%s%s</li>" content children
+        in
+        Printf.sprintf "<ul>%s</ul>" (String.concat "" (List.map aux sidebar))
+  in
+
+  List.iter
+    (fun mld ->
+      let dir, file = Fpath.split_base (Fpath.v mld) in
+      let meta = Odoc_notebook_lib.Mld.meta_of_mld mld in
+      let libs_list =
+        match meta with None -> [ "stdlib" ] | Some l -> "stdlib" :: l.libs
+      in
+      let libs_set = Util.StringSet.of_list libs_list in
+      let odoc_file = Fpath.(set_ext "odoc" file |> to_string |> (fun x -> "page-" ^ x) |> v) in
+      let odocl_file = Fpath.(set_ext "odocl" odoc_file) in
+      let odoc_dir = Fpath.(append (odoc_dir / "notebooks") dir) in
       let _ =
         Odoc.html_generate ~output_dir:output_dir_str
-          ~input_file:Fpath.(v "notebooks" / odocl_file)
+          ~input_file:(Fpath.append odoc_dir odocl_file)
           ~as_json:true ()
       in
       let json_file =
-        Fpath.(v "html" / "notebooks" / (x ^ ".html.json") |> to_string)
+        Fpath.(append (v "html" / "notebooks") dir / (Fpath.set_ext ".html.json" file |> to_string))
       in
-      Mk_frontend.mk init_cmis libs Fpath.(output_dir / "assets") ("frontend_"^x);
+      let x = Fpath.rem_ext file |> Fpath.to_string in
+      Mk_frontend.mk init_cmis libs_set
+        Fpath.(output_dir / "assets")
+        ("frontend_" ^ x);
 
-      let ic = open_in json_file in
+      let ic = open_in (Fpath.to_string json_file) in
       let yojson = Yojson.Safe.from_channel ic in
-      Format.eprintf "Here we go...\n%!";
       let _ =
-        let* json = as_json_of_yojson yojson in
+        let json = as_json_of_yojson yojson in
+        let json = match json with Ok x -> x | Error e -> failwith e in
+        Format.eprintf "We've got the result\n%!";
         let breadcrumbs = {|<a href="../index.html">Up</a> – notebooks|} in
-        let toc =
-          {|<ul>
-        <li>
-          <a href="#stsuff-x">Stsuff x</a>
-          <ul>
-            <li>
-              <a href="#m-stuff">M stuff</a>
-            </li>
-            <li>
-              <a href="#other-stuff">Other stuff</a>
-            </li>
-          </ul>
-        </li>
-      </ul>|}
+        let localtoc =
+          let rec aux (toc : toc) =
+            let children = List.map aux toc.children in
+            let children =
+              if List.length children > 0 then
+                Printf.sprintf "<ul>%s</ul>" (String.concat "" children)
+              else ""
+            in
+            Printf.sprintf "<li><a href=\"%s\">%s</a>%s</li>" toc.href toc.title
+              children
+          in
+          let toc = List.map aux json.toc in
+          Printf.sprintf "<ul>%s</ul>" (String.concat "" toc)
         in
         let post_content = "" in
+        Format.eprintf "Creating html page\n%!";
         let* html =
           Html_page.(
             create
               {
                 title = mld;
+                header = json.header;
                 breadcrumbs;
-                toc;
-                odoc_assets_path = "../assets";
+                localtoc;
+                globaltoc;
+                odoc_assets_path = "/assets";
                 preamble = json.preamble;
-                frontend = "frontend_"^x^".js";
+                frontend = "frontend_" ^ x ^ ".js";
                 content = json.content;
                 post_content;
               })
         in
+        Format.eprintf "Created\n%!";
         let oc =
-          open_out Fpath.(v "html" / "notebooks" / (x ^ ".html") |> to_string)
+          open_out Fpath.((append (output_dir / "notebooks") dir) / (x ^ ".html") |> to_string)
         in
         Printf.fprintf oc "%s" html;
         close_out oc;
@@ -247,6 +315,21 @@ let generate output_dir_str files =
     files;
   `Ok ()
 
+let test files =
+  match Odoc_notebook_lib.Test.run files with
+  | Ok () -> `Ok ()
+  | Error (`Msg m) ->
+      Format.eprintf "Error: %s\n%!" m;
+      `Error (false, m)
+
+let fpath_arg =
+  let print ppf v = Fpath.pp ppf v in
+  Arg.conv (Fpath.of_string, print)
+
+let odoc_dir =
+  let doc = "Odoc directory from odoc_driver" in
+  Arg.(required & opt (some fpath_arg) None & info [ "odoc-dir" ] ~doc)
+
 let generate_cmd =
   let output_dir =
     let doc = "Output directory in which to put all outputs" in
@@ -255,12 +338,17 @@ let generate_cmd =
   let files = Arg.(value & pos_all non_dir_file [] & info [] ~docv:"FILE") in
   let doc = "Generate static files to serve a notebook" in
   let info = Cmd.info "generate" ~doc in
-  Cmd.v info Term.(ret (const generate $ output_dir $ files))
+  Cmd.v info Term.(ret (const generate $ output_dir $ odoc_dir $ files))
+
+let test_cmd =
+  let files = Arg.(value & pos_all non_dir_file [] & info [] ~docv:"FILE") in
+  let info = Cmd.info "test" ~doc:"Test an mld file" in
+  Cmd.v info Term.(ret (const test $ files))
 
 let main_cmd =
   let doc = "An odoc notebook tool" in
   let info = Cmd.info "odoc-notebook" ~version:"%%VERSION%%" ~doc in
   let default = Term.(ret (const (`Help (`Pager, None)))) in
-  Cmd.group info ~default [ generate_cmd ]
+  Cmd.group info ~default [ generate_cmd; test_cmd ]
 
 let () = exit (Cmd.eval main_cmd)
