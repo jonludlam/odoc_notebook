@@ -166,7 +166,7 @@ let generate output_dir_str odoc_dir files =
   List.iter (fun mld ->
     let (dir, file) = Fpath.split_base (Fpath.v mld) in
     let parent_id =
-      Odoc.Id.of_fpath Fpath.(normalize (append (v "notebooks") dir))
+      Odoc.Id.of_fpath Fpath.(normalize dir)
     in
     generate_page parent_id mld) files;
   List.iter
@@ -183,7 +183,7 @@ let generate output_dir_str odoc_dir files =
       in
       let x = Fpath.set_ext ".odoc" file in
       let odoc_file = "page-" ^ (Fpath.to_string x) in
-      let odoc_path = Fpath.(append (odoc_dir / "notebooks") dir) in
+      let odoc_path = Fpath.(append odoc_dir dir) in
       Odoc.link
         ~input_file:Fpath.(odoc_path / odoc_file)
         ~libs ~docs:[] ~includes:[] ~ignore_output:true ~custom_layout:true
@@ -250,14 +250,14 @@ let generate output_dir_str odoc_dir files =
       let libs_set = Util.StringSet.of_list libs_list in
       let odoc_file = Fpath.(set_ext "odoc" file |> to_string |> (fun x -> "page-" ^ x) |> v) in
       let odocl_file = Fpath.(set_ext "odocl" odoc_file) in
-      let odoc_dir = Fpath.(append (odoc_dir / "notebooks") dir) in
+      let odoc_dir = Fpath.(append odoc_dir dir) in
       let _ =
         Odoc.html_generate ~output_dir:output_dir_str
           ~input_file:(Fpath.append odoc_dir odocl_file)
           ~as_json:true ()
       in
       let json_file =
-        Fpath.(append (v "html" / "notebooks") dir / (Fpath.set_ext ".html.json" file |> to_string))
+        Fpath.(append (v "html") dir / (Fpath.set_ext ".html.json" file |> to_string))
       in
       let x = Fpath.rem_ext file |> Fpath.to_string in
       Mk_frontend.mk init_cmis libs_set
@@ -305,7 +305,7 @@ let generate output_dir_str odoc_dir files =
         in
         Format.eprintf "Created\n%!";
         let oc =
-          open_out Fpath.((append (output_dir / "notebooks") dir) / (x ^ ".html") |> to_string)
+          open_out Fpath.((append output_dir dir) / (x ^ ".html") |> to_string)
         in
         Printf.fprintf oc "%s" html;
         close_out oc;
