@@ -44,8 +44,11 @@ let template =
   </div>
   <header class="odoc-preamble">{{{header}}}{{{preamble}}}</header>
   <div class="odoc-tocs">
-    <nav class="odoc-toc odoc-local-toc">{{{localtoc}}}</nav>
+    {{#localtoc}}
+      <nav class="odoc-toc odoc-local-toc">{{{localtoc}}}</nav>
+    {{/localtoc}}
     <nav class="odoc-toc odoc-global-toc">{{{globaltoc}}}</nav>
+  </div>
   <div class="odoc-content">{{{content}}}</div>
   {{{post_content}}}
 </body>
@@ -58,7 +61,7 @@ type spec = {
   breadcrumbs : string;
   preamble : string;
   frontend : string;
-  localtoc : string;
+  localtoc : string option;
   globaltoc : string;
   content : string;
   post_content : string;
@@ -79,18 +82,21 @@ let create
     } =
   let json =
     `O
-      [
+      ([
         ("title", `String title);
         ("header", `String header);
         ("odoc_assets_path", `String odoc_assets_path);
         ("breadcrumbs", `String breadcrumbs);
         ("preamble", `String preamble);
         ("frontend", `String frontend);
-        ("localtoc", `String localtoc);
+        ("localtoc", match localtoc with Some l -> `String l | None -> `Null);
         ("globaltoc", `String globaltoc);
         ("content", `String content);
         ("post_content", `String post_content);
-      ]
+      ] @
+      (match localtoc with
+      | Some l -> [ ("localtoc", `String l) ]
+      | None -> []))
   in
   try Ok (Mustache.render template json)
   with Mustache.Render_error err ->

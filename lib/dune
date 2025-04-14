@@ -16,7 +16,6 @@
   logs
   logs.fmt
   mustache
-  odoc_notebook_crunch
   js_top_worker
   tyxml
   base64

@@ -7,11 +7,12 @@ let ocaml = Jv.get Jv.global "__CM__mllike" |> Stream.Language.of_jv
 let ocaml = Stream.Language.define ocaml
 let _ = Console.debug [ Jv.of_string "Starting" ]
 
-let initialise cmis s callback =
+let initialise requires s callback =
   let open Fut.Result_syntax in
   let rpc = Js_top_worker_client_fut.start s 100000 callback in
   let* () =
-    W.init rpc { Toplevel_api_gen.path = "/static/cmis"; cmas = []; cmis }
+    W.init rpc { Toplevel_api_gen.path = "/static/cmis"; cmas = []; cmis={ static_cmis=[]; dynamic_cmis=[] }; findlib_index = "/_opam/findlib_index"; findlib_requires=requires; stdlib_dcs = "/_opam/ocaml/dynamic_cmis.json";
+    }
   in
   Fut.return (Ok rpc)
 
@@ -448,10 +449,10 @@ let nav_setup () =
       ())
     nav_elts
 
-let init_page cmis =
+let init_page requires =
   let open Fut.Result_syntax in
   let* rpc =
-    initialise cmis "/assets/worker.js" (fun _ ->
+    initialise requires "/assets/worker.js" (fun _ ->
         Console.(log [ str "Timeout" ]))
   in
   Console.log [ Jv.of_string "Initialised" ];
@@ -495,11 +496,11 @@ let init_page cmis =
 
 open Fut.Syntax
 
-let main cmis =
+let main requires =
   Console.(log [ str "DOM content loaded." ]);
   let* _ev = Ev.next Ev.load (Window.as_target G.window) in
   Console.(log [ str "Resources loaded." ]);
-  ignore (init_page cmis);
+  ignore (init_page requires);
 
   Fut.return ()
 

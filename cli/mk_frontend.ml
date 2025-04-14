@@ -1,8 +1,10 @@
 (* To make a toplevel frontend.js *)
 
-let mk cmis_txt libs dir name =
+let mk libs dir name =
+  let txt_libs =
+    Util.StringSet.elements libs |> List.map (fun lib -> Format.sprintf {|"%s"|} lib) |> String.concat "; " in
   let txt =
-    {|let _ = Frontend.main Js_top_worker_rpc.Toplevel_api_gen.|} ^ cmis_txt
+    Format.sprintf {|let _ = Frontend.main [%s]|} txt_libs 
   in
   let file = Fpath.(dir / (name ^ "_frontend.ml")) in
   Util.write_file file [ txt ];

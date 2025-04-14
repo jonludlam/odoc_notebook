@@ -22,6 +22,9 @@ let get_dir lib =
     Printf.eprintf "Error: %s\n" (Printexc.to_string e);
     Error (`Msg "Error getting directory")
 
+let findlib_dir () =
+  Findlib.default_location ()
+
 let archives pkg =
   init ();
   let package = Fl_package_base.query pkg in
@@ -34,10 +37,9 @@ let archives pkg =
     with _ -> []
   in
   match pkg with
-  | "stdlib" -> [ "stdlib.cma"; "stdlib.cmxa" ]
+  | "stdlib" -> [ "stdlib.cma"; ]
   | _ ->
-      get_1 [ "native" ] @ get_1 [ "byte" ]
-      @ get_1 [ "native"; "ppx_driver" ]
+      get_1 [ "byte" ]
       @ get_1 [ "byte"; "ppx_driver" ]
       |> List.filter (fun x -> String.length x > 0)
       |> List.sort_uniq String.compare
@@ -59,3 +61,8 @@ let deps pkgs =
     in
     Ok packages
   with e -> Error (`Msg (Printexc.to_string e))
+
+let meta_file pkg =
+  init ();
+  let package = Fl_package_base.query pkg in
+  let meta = package.Fl_package_base.package_meta in meta

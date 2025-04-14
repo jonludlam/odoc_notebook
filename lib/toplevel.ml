@@ -2,6 +2,17 @@ open Js_top_worker_rpc
 module M = Idl.IdM (* Server is synchronous *)
 module IdlM = Idl.Make (M)
 
+
+let handle_findlib_error = function
+  | Failure msg ->
+      Printf.fprintf stderr "%s" msg
+  | Fl_package_base.No_such_package(pkg, reason) ->
+      Printf.fprintf stderr "No such package: %s%s\n" pkg (if reason <> "" then " - " ^ reason else "")
+  | Fl_package_base.Package_loop pkg ->
+      Printf.fprintf stderr "Package requires itself: %s\n" pkg
+  | exn ->
+      raise exn
+
 module UnixWorker = struct
   let capture f () =
     let stdout_backup = Unix.dup ~cloexec:true Unix.stdout in
@@ -51,16 +62,24 @@ module UnixWorker = struct
         Sys.remove filename_out;
         Sys.remove filename_err)
 
-  let sync_get _ = None
-  let create_file ~name:_ ~content:_ = failwith "Not implemented: create_file"
+        type findlib_t = unit
 
-  let import_scripts urls =
-    if urls = [] then ()
-    else (
-      List.iter (fun url -> Format.eprintf "Not importing: %s\n%!" url) urls;
-      failwith "Not implemented: import_scripts")
-
-  let init_function _ = failwith "Not implemented: init_function"
+        let sync_get _ = None
+        let create_file ~name:_ ~content:_ = failwith "Not implemented"
+        let import_scripts = function
+          | [] -> ()
+          | _ -> failwith "Unimplemented 1"
+        let init_function _ = failwith "Unimplemented 2" 
+      
+        let get_stdlib_dcs _ = []
+      
+        let findlib_init _ = ()
+        let require () packages =
+          try
+            let eff_packages = Findlib.package_deep_ancestors !Topfind.predicates packages in
+            Topfind.load eff_packages; []
+          with exn ->
+            handle_findlib_error exn; []
 end
 
 module U = Js_top_worker.Impl.Make (UnixWorker)
@@ -122,6 +141,9 @@ let init ~verbose:_ ~silent:_ ~verbose_findlib:_ ~directives:_ ~packages
         Toplevel_api_gen.path = Printf.sprintf "%s/lib/ocaml" opam_path;
         cmas = [];
         cmis = { static_cmis = []; dynamic_cmis };
+        findlib_index = "";
+        findlib_requires = deps;
+        stdlib_dcs = "";
       }
     >>= fun () ->
     U.setup () >>= fun _ -> return ()

@@ -7,60 +7,6 @@
   test.mld.out
   (run odoc_notebook test %{dep:test.mld})))
 
-(rule
- (with-stdout-to
-  foundations1.mld.out
-  (run odoc_notebook test %{dep:foundations1.mld})))
-
-(rule
- (with-stdout-to
-  foundations2.mld.out
-  (run odoc_notebook test %{dep:foundations2.mld})))
-
-(rule
- (with-stdout-to
-  foundations3.mld.out
-  (run odoc_notebook test %{dep:foundations3.mld})))
-
-(rule
- (with-stdout-to
-  foundations4.mld.out
-  (run odoc_notebook test %{dep:foundations4.mld})))
-
-(rule
- (with-stdout-to
-  foundations5.mld.out
-  (run odoc_notebook test %{dep:foundations5.mld})))
-
-(rule
- (with-stdout-to
-  foundations6.mld.out
-  (run odoc_notebook test %{dep:foundations6.mld})))
-
-(rule
- (with-stdout-to
-  foundations7.mld.out
-  (run odoc_notebook test %{dep:foundations7.mld})))
-
-(rule
- (with-stdout-to
-  foundations8.mld.out
-  (run odoc_notebook test %{dep:foundations8.mld})))
-
-(rule
- (with-stdout-to
-  foundations9.mld.out
-  (run odoc_notebook test %{dep:foundations9.mld})))
-
-(rule
- (with-stdout-to
-  foundations10.mld.out
-  (run odoc_notebook test %{dep:foundations10.mld})))
-
-(rule
- (with-stdout-to
-  foundations11.mld.out
-  (run odoc_notebook test %{dep:foundations11.mld})))
 
 (rule
  (with-stdout-to
@@ -76,61 +22,6 @@
  (alias runtest)
  (action
   (diff mime_test.mld mime_test.mld.out)))
-
-(rule
- (alias runtest)
- (action
-  (diff foundations1.mld foundations1.mld.out)))
-
-(rule
- (alias runtest)
- (action
-  (diff foundations2.mld foundations2.mld.out)))
-
-(rule
- (alias runtest)
- (action
-  (diff foundations3.mld foundations3.mld.out)))
-
-(rule
- (alias runtest)
- (action
-  (diff foundations4.mld foundations4.mld.out)))
-
-(rule
- (alias runtest)
- (action
-  (diff foundations5.mld foundations5.mld.out)))
-
-(rule
- (alias runtest)
- (action
-  (diff foundations6.mld foundations6.mld.out)))
-
-(rule
- (alias runtest)
- (action
-  (diff foundations7.mld foundations7.mld.out)))
-
-(rule
- (alias runtest)
- (action
-  (diff foundations8.mld foundations8.mld.out)))
-
-(rule
- (alias runtest)
- (action
-  (diff foundations9.mld foundations9.mld.out)))
-
-(rule
- (alias runtest)
- (action
-  (diff foundations10.mld foundations10.mld.out)))
-
-(rule
- (alias runtest)
- (action
-  (diff foundations11.mld foundations11.mld.out)))
 
 (env
  (_

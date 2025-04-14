@@ -12,8 +12,9 @@ button.panel {
 div.editor {
   background-color: #2d2f3f;
   border: 1px solid #2d2f3f;
-  padding: 10px;
+  padding: 5px;
   border-radius: 5px;
+  max-width: 700px;
 }
 
 div.odoc-src-output {
@@ -27,4 +28,8 @@ pre.stdout {
   color: #f8f8f2;
 }
 
+.hidden {
+  display: none;
+}
+  
 |}

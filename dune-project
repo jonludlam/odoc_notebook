@@ -6,20 +6,20 @@
 (generate_opam_files true)
 
 (source
- (github username/reponame))
+ (github jonludlam/odoc_notebook))
 
-(authors "Author Name")
+(authors "Jon Ludlam")
 
-(maintainers "Maintainer Name")
+(maintainers "Jon Ludlam")
 
-(license LICENSE)
+(license ISC)
 
 (documentation https://url/to/documentation)
 
 (package
  (name odoc_notebook)
- (synopsis "A short synopsis")
- (description "A longer description")
+ (synopsis "A tool to create Jupyter-style notebooks from mld pages")
+ (description "A tool to create Jupyter-style notebooks from mld pages")
  (depends ocaml dune)
  (allow_empty)
  (tags

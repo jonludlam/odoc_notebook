@@ -36,7 +36,7 @@ let handle_block (block : Blocks.Block.code_block) =
       let content_txt =
         Odoc_parser.codeblock_content block.code_block block.content_txt |> fst
       in
-      ignore (handle_ocaml block);
+      let block = handle_ocaml block in
       { block with content_txt }
   | OCamlTop -> handle_toplevel block
   | Unknown _ ->
