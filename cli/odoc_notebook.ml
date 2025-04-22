@@ -77,40 +77,21 @@ let generate_page parent_id mld =
     ~parent_id
     ~warnings_tag:(Some "odoc_notebook") ~ignore_output:true
 
-let generate output_dir_str odoc_dir files =
+let opam output_dir_str libraries =
+  let libraries = match Ocamlfind.deps libraries with | Ok l -> Util.StringSet.of_list ("stdlib"::l) | Error _ -> failwith "Bad libs" in
   let verbose = true in
   Eio_main.run @@ fun env ->
   Eio.Switch.run @@ fun sw ->
   if verbose then Logs.set_level (Some Logs.Debug);
   Logs.set_reporter (Logs_fmt.reporter ());
   let () = Worker_pool.start_workers env sw 16 in
+  Logs.debug (fun m -> m "Libraries: %a" (Fmt.list ~sep:Fmt.comma Fmt.string) (Util.StringSet.elements libraries));
   let output_dir = Fpath.v output_dir_str in
-  let metas =
-    List.filter_map (fun f -> Odoc_notebook_lib.Mld.meta_of_mld f) files
-  in
-  let mld_libs =
-    List.fold_left
-      (fun acc meta ->
-        Util.StringSet.(union (of_list meta.Odoc_notebook_lib.Mld.libs) acc))
-      (Util.StringSet.singleton "stdlib")
-      metas
-  in
   let meta_files =
     List.map (fun lib ->
-      Ocamlfind.meta_file lib) (Util.StringSet.elements mld_libs) |> Util.StringSet.of_list in
-  let lib_map =
-      let ic = open_in Fpath.(odoc_dir / "lib_map.json" |> Fpath.to_string) in
-      let yojson = Yojson.Safe.from_channel ic in
-      let lib_map = Yojson.Safe.Util.to_assoc yojson in
-      let get_str x =
-        Fpath.(odoc_dir // (Yojson.Safe.Util.to_string x |> Fpath.v))
-      in
-      List.fold_left
-        (fun acc (k, v) -> Util.StringMap.add k (get_str v) acc)
-        Util.StringMap.empty lib_map
-  in
+      Ocamlfind.meta_file lib) (Util.StringSet.elements libraries) |> Util.StringSet.of_list in
   let cmi_dirs =
-    match Ocamlfind.deps (Util.StringSet.to_list mld_libs) with
+    match Ocamlfind.deps (Util.StringSet.to_list libraries) with
     | Ok libs ->
         let dirs =
           List.filter_map
@@ -187,20 +168,13 @@ let generate output_dir_str odoc_dir files =
           let _ = Util.lines_of_process cmd in
           ()
         in
-          List.iter doit archives ) mld_libs;
+          List.iter doit archives ) libraries;
   
 
         (* Format.eprintf "@[<hov 2>dir: %a [%a]@]\n%!" Fpath.pp dir (Fmt.list ~sep:Fmt.sp Fmt.string) files) cmis; *)
     Ok ()
   in
-  let notebook_css =
-    open_out Fpath.(output_dir / "assets" / "odoc-notebook.css" |> to_string)
-  in
-  Printf.fprintf notebook_css "%s" Notebook_css.notebook_css;
-  close_out notebook_css;
-  ignore (Odoc.support_files Fpath.(output_dir / "assets"));
   let init_cmis = gen_cmis cmis in
-  Format.eprintf "Numnber of cmis: %d\n%!" (List.length init_cmis);
   List.iter (fun (dir, dcs) ->
     let findlib_dir = Ocamlfind.findlib_dir () |> Fpath.v in
     let d = Fpath.relativize ~root:findlib_dir dir in
@@ -213,6 +187,38 @@ let generate output_dir_str odoc_dir files =
       let oc = open_out Fpath.(dir / "dynamic_cmis.json" |> to_string) in
       Printf.fprintf oc "%s" dcs;
       close_out oc) init_cmis;
+      Format.eprintf "Numnber of cmis: %d\n%!" (List.length init_cmis);
+
+  let () = Mk_backend.mk libraries (Fpath.(output_dir / "assets")) in
+
+  `Ok ()
+
+let generate output_dir_str odoc_dir files =
+  let verbose = true in
+  Eio_main.run @@ fun env ->
+  Eio.Switch.run @@ fun sw ->
+  if verbose then Logs.set_level (Some Logs.Debug);
+  Logs.set_reporter (Logs_fmt.reporter ());
+  let () = Worker_pool.start_workers env sw 16 in
+  let output_dir = Fpath.v output_dir_str in
+  let lib_map =
+      let ic = open_in Fpath.(odoc_dir / "lib_map.json" |> Fpath.to_string) in
+      let yojson = Yojson.Safe.from_channel ic in
+      let lib_map = Yojson.Safe.Util.to_assoc yojson in
+      let get_str x =
+        Fpath.(odoc_dir // (Yojson.Safe.Util.to_string x |> Fpath.v))
+      in
+      List.fold_left
+        (fun acc (k, v) -> Util.StringMap.add k (get_str v) acc)
+        Util.StringMap.empty lib_map
+  in
+  let ( let* ) = Result.bind in
+  let notebook_css =
+    open_out Fpath.(output_dir / "assets" / "odoc-notebook.css" |> to_string)
+  in
+  Printf.fprintf notebook_css "%s" Notebook_css.notebook_css;
+  close_out notebook_css;
+  ignore (Odoc.support_files Fpath.(output_dir / "assets"));
   List.iter (fun mld ->
     let (dir, file) = Fpath.split_base (Fpath.v mld) in
     let parent_id =
@@ -293,8 +299,6 @@ let generate output_dir_str odoc_dir files =
         in
         Printf.sprintf "<ul>%s</ul>" (String.concat "" (List.map aux sidebar))
   in
-
-  let () = Mk_backend.mk mld_libs (Fpath.(output_dir / "assets")) in
 
   List.iter
     (fun mld ->
@@ -411,10 +415,19 @@ let test_cmd =
   let info = Cmd.info "test" ~doc:"Test an mld file" in
   Cmd.v info Term.(ret (const test $ files))
 
+let opam_cmd =
+  let libraries = Arg.(value & pos_all string [] & info [] ~docv:"LIB") in
+  let output_dir =
+    let doc = "Output directory in which to put all outputs" in
+    Arg.(value & opt string "html" & info [ "o"; "output" ] ~doc)
+  in
+  let info = Cmd.info "opam" ~doc:"Generate opam files" in
+  Cmd.v info Term.(ret (const opam $ output_dir $ libraries))
+
 let main_cmd =
   let doc = "An odoc notebook tool" in
   let info = Cmd.info "odoc-notebook" ~version:"%%VERSION%%" ~doc in
   let default = Term.(ret (const (`Help (`Pager, None)))) in
-  Cmd.group info ~default [ generate_cmd; test_cmd ]
+  Cmd.group info ~default [ generate_cmd; test_cmd; opam_cmd ]
 
 let () = exit (Cmd.eval main_cmd)

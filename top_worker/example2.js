@@ -33,6 +33,10 @@ function exec(phrase) {
     return rpc("exec",[phrase])
 }
 
+function exec_toplevel(script) {
+    return rpc("exec_toplevel",[script])
+}
+
 function dump(result) {
     console.log(result.stdout)
 }

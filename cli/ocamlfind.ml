@@ -57,7 +57,7 @@ let deps pkgs =
   init ();
   try
     let packages =
-      Fl_package_base.requires_deeply ~preds:[ "ppx_driver" ] pkgs
+      Fl_package_base.requires_deeply ~preds:[ "ppx_driver"; "byte" ] pkgs
     in
     Ok packages
   with e -> Error (`Msg (Printexc.to_string e))
