@@ -245,15 +245,19 @@ let generate output_dir_str odoc_dir files =
   let () = Worker_pool.start_workers env sw 16 in
   let output_dir = Fpath.v output_dir_str in
   let lib_map =
-    let ic = open_in Fpath.(odoc_dir / "lib_map.json" |> Fpath.to_string) in
-    let yojson = Yojson.Safe.from_channel ic in
-    let lib_map = Yojson.Safe.Util.to_assoc yojson in
-    let get_str x =
-      Fpath.(odoc_dir // (Yojson.Safe.Util.to_string x |> Fpath.v))
-    in
-    List.fold_left
-      (fun acc (k, v) -> Util.StringMap.add k (get_str v) acc)
-      Util.StringMap.empty lib_map
+    try
+      let ic = open_in Fpath.(odoc_dir / "lib_map.json" |> Fpath.to_string) in
+      let yojson = Yojson.Safe.from_channel ic in
+      let lib_map = Yojson.Safe.Util.to_assoc yojson in
+      let get_str x =
+        Fpath.(odoc_dir // (Yojson.Safe.Util.to_string x |> Fpath.v))
+      in
+      List.fold_left
+        (fun acc (k, v) -> Util.StringMap.add k (get_str v) acc)
+        Util.StringMap.empty lib_map
+    with _ ->
+      Format.eprintf "Failed to read lib_map.json\n%!";
+      Util.StringMap.singleton "stdlib" odoc_dir
   in
   let ( let* ) = Result.bind in
   let notebook_css =
@@ -281,8 +285,8 @@ let generate output_dir_str odoc_dir files =
         | Some l -> "stdlib" :: (Result.get_ok l).libs
       in
       let libs =
-        List.map
-          (fun lib_name -> (lib_name, Util.StringMap.find lib_name lib_map))
+        List.filter_map
+          (fun lib_name -> try Some (lib_name, Util.StringMap.find lib_name lib_map) with _ -> None)
           libs_list
       in
       let x = Fpath.set_ext ".odoc" file in
@@ -327,7 +331,7 @@ let generate output_dir_str odoc_dir files =
   in
   let sidebar = Result.value ~default:[] sidebar in
 
-  let globaltoc =
+  let globaltoc cur_path =
     match sidebar with
     | [] ->
         Format.eprintf "No global sidebar found\n%!";
@@ -335,10 +339,11 @@ let generate output_dir_str odoc_dir files =
     | _ ->
         let rec aux tree =
           let children = List.map aux tree.children in
+          let has_children = List.length children > 0 in
           let children =
-            if List.length children > 0 then
-              Printf.sprintf "<ul>%s</ul>" (String.concat "" children)
-            else ""
+            if has_children then
+              Some (Printf.sprintf "<ul>%s</ul>" (String.concat "" children))
+            else None
           in
           let content =
             match tree.node.url with
@@ -346,7 +351,22 @@ let generate output_dir_str odoc_dir files =
                 Printf.sprintf "<a href=\"/%s\">%s</a>" url tree.node.content
             | None -> tree.node.content
           in
-          Printf.sprintf "<li>%s%s</li>" content children
+          let should_do_children =
+            match tree.node.url with
+            | None -> true
+            | Some url -> 
+              let parent = Fpath.parent (Fpath.v url) in
+              (* Format.eprintf "Checking %a against %a\n%!" Fpath.pp parent Fpath.pp cur_path; *)
+              let result =
+                parent = Fpath.v "./" || Fpath.is_prefix parent cur_path in
+              (* Format.eprintf "Result: %b\n%!" result; *)
+              result
+          in
+          match children, should_do_children with
+          | Some children, true ->
+            Printf.sprintf "<li>%s%s</li>" content children
+          | _, _ ->
+            Printf.sprintf "<li>%s</li>" content
         in
         Printf.sprintf "<ul>%s</ul>" (String.concat "" (List.map aux sidebar))
   in
@@ -361,10 +381,10 @@ let generate output_dir_str odoc_dir files =
     (fun mld ->
       let dir, file = Fpath.split_base (Fpath.v mld) in
       let meta =
-        if Fpath.has_ext "mld" file then Odoc_notebook_lib.Mld.meta_of_mld mld
+        (* if Fpath.has_ext "mld" file then Odoc_notebook_lib.Mld.meta_of_mld mld
         else
-          Some
-            (Ok { libs = [ "core" ]; html_scripts = []; other_config = `Null })
+          Some *)
+            (Some { Odoc_notebook_lib.Mld.libs = [ "core" ]; html_scripts = []; other_config = `Null })
       in
       let odoc_file =
         Fpath.(set_ext "odoc" file |> to_string |> (fun x -> "page-" ^ x) |> v)
@@ -395,7 +415,7 @@ let generate output_dir_str odoc_dir files =
           let _ =
             let json = as_json_of_yojson yojson in
             let json = match json with Ok x -> x | Error e -> failwith e in
-            Format.eprintf "We've got the result\n%!";
+            (* Format.eprintf "We've got the result - doing details\n%!"; *)
             let breadcrumbs = {|<a href="../index.html">Up</a> – notebooks|} in
             let localtoc =
               match json.toc with
@@ -416,6 +436,10 @@ let generate output_dir_str odoc_dir files =
             in
             let post_content = "" in
             Format.eprintf "Creating html page\n%!";
+            let dir, file = Fpath.split_base (Fpath.v mld) in
+            let parent_id = Fpath.(normalize dir) in
+            (* Format.eprintf "Parent id: %a\n%!" Fpath.pp parent_id; *)
+            let globaltoc = globaltoc parent_id in
             let* html =
               Html_page.(
                 create
