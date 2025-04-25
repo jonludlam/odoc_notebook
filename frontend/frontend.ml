@@ -7,6 +7,12 @@ let ocaml = Jv.get Jv.global "__CM__mllike" |> Stream.Language.of_jv
 let ocaml = Stream.Language.define ocaml
 let _ = Console.debug [ Jv.of_string "Starting" ]
 
+type meta = {
+  libs : string list; [@default []]
+  html_scripts : string list; [@default []]
+}
+[@@deriving yojson]
+
 let initialise requires s callback =
   let open Fut.Result_syntax in
   let rpc = Js_top_worker_client_fut.start s 100000 callback in
@@ -373,7 +379,7 @@ let make_editor rpc id elt =
   let mime_only = List.mem "mime-only" str_classes in
   (* let is_deferred = List.mem "deferred-js" str_classes in *)
   let ty =
-    if List.mem "language-ocaml" str_classes then OCaml
+    if List.mem "language-ocaml" str_classes then Toplevel
     else if List.mem "language-ocamltop" str_classes then Toplevel
     else Other in
   let hidden = List.mem "hidden" str_classes in
@@ -496,11 +502,45 @@ let init_page requires =
 
 open Fut.Syntax
 
-let main requires =
+let main _requires =
+  let meta_elts =
+    El.fold_find_by_selector
+        (fun elt y ->
+          let parent_exn elt =
+            match El.parent elt with Some e -> e | None -> failwith "no parent"
+          in
+          let parent = parent_exn elt in
+          let classes_iter =
+            Jv.call (Jv.get (Jv.repr parent) "classList") "values" [||]
+          in
+          let str_classes =
+            Jv.It.fold Jv.to_string (fun x y -> x :: y) classes_iter []
+          in
+          if List.mem "language-meta" str_classes then
+            let meta =
+              let doc = El.txt_text (El.children elt |> List.hd) |> Jstr.to_string in
+              let y = Yojson.Safe.from_string doc in
+              [y]
+            in
+            meta
+          else 
+            y)
+      (Jstr.v "pre code")
+      []
+    |> List.rev
+  in
+  let meta = (match meta_elts with
+  | [] -> Console.log [ Jv.of_string "No meta elements found" ]; None
+  | [x] ->
+    (match meta_of_yojson x with Ok m -> Some m | _ -> None)
+
+  | _ -> None) in
+  let libs = match meta with | Some m -> m.libs | None -> [] in
+
   Console.(log [ str "DOM content loaded." ]);
   let* _ev = Ev.next Ev.load (Window.as_target G.window) in
   Console.(log [ str "Resources loaded." ]);
-  ignore (init_page requires);
+  ignore (init_page libs);
 
   Fut.return ()
 

@@ -1,5 +1,6 @@
 (lang dune 3.13)
 (using mdx 0.4)
+(cram enable)
 
 (name odoc_notebook)
 

@@ -3,6 +3,7 @@ type t = { raw : string; parsed : Odoc_parser.t }
 type meta = {
   libs : string list; [@default []]
   html_scripts : string list; [@default []]
+  other_config : Yojson.Safe.t; [@default `Null]
 }
 [@@deriving yojson]
 
@@ -41,7 +42,7 @@ let meta_of_parsed parsed =
   | None -> None
   | Some meta -> (
       let y = Yojson.Safe.from_string meta in
-      match meta_of_yojson y with Ok m -> Some m | _ -> None)
+      Some (meta_of_yojson y))
 
 let meta_of_mld mld_file =
   let { parsed; _ } = parse_mld mld_file in

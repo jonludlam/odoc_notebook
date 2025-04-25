@@ -1,0 +1,8 @@
+{0 Toplevel test}
+
+{@ocamltop[
+# Printf.printf "Hello, world!\n";;
+foo bar baz
+# Printf.printf "Here we go!\n";;
+]}
+

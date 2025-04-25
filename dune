@@ -2,26 +2,26 @@
 
 (documentation)
 
-(rule
- (with-stdout-to
-  test.mld.out
-  (run odoc_notebook test %{dep:test.mld})))
+; (rule
+;  (with-stdout-to
+;   test.mld.out
+;   (run odoc_notebook test %{dep:test.mld})))
 
 
-(rule
- (with-stdout-to
-  mime_test.mld.out
-  (run odoc_notebook test %{dep:mime_test.mld})))
+; (rule
+;  (with-stdout-to
+;   mime_test.mld.out
+;   (run odoc_notebook test %{dep:mime_test.mld})))
 
-(rule
- (alias runtest)
- (action
-  (diff test.mld test.mld.out)))
+; (rule
+;  (alias runtest)
+;  (action
+;   (diff test.mld test.mld.out)))
 
-(rule
- (alias runtest)
- (action
-  (diff mime_test.mld mime_test.mld.out)))
+; (rule
+;  (alias runtest)
+;  (action
+;   (diff mime_test.mld mime_test.mld.out)))
 
 (env
  (_

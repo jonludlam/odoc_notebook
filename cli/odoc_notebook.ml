@@ -71,19 +71,24 @@ let gen_cmis cmis =
   in
   List.map gen_one cmis
 
-let generate_page parent_id mld =
-  Odoc.compile ~output_dir:(Fpath.v "_odoc") ~includes:Fpath.Set.empty
+let generate_page parent_id odoc_dir mld =
+  Odoc.compile ~output_dir:odoc_dir ~includes:Fpath.Set.empty
     ~input_file:(Fpath.v mld)
     ~parent_id
     ~warnings_tag:(Some "odoc_notebook") ~ignore_output:true
+
+let generate_page_md parent_id odoc_dir mld =
+  Odoc.compile_md ~output_dir:odoc_dir
+    ~input_file:(Fpath.v mld)
+    ~parent_id
 
 let opam output_dir_str libraries =
   let libraries = match Ocamlfind.deps libraries with | Ok l -> Util.StringSet.of_list ("stdlib"::l) | Error _ -> failwith "Bad libs" in
   let verbose = true in
   Eio_main.run @@ fun env ->
   Eio.Switch.run @@ fun sw ->
-  if verbose then Logs.set_level (Some Logs.Debug);
-  Logs.set_reporter (Logs_fmt.reporter ());
+  if verbose then Logs.set_level (Some Logs.Info) else Logs.set_level None;
+  (* Logs.set_reporter (Logs_fmt.reporter ()); *)
   let () = Worker_pool.start_workers env sw 16 in
   Logs.debug (fun m -> m "Libraries: %a" (Fmt.list ~sep:Fmt.comma Fmt.string) (Util.StringSet.elements libraries));
   let output_dir = Fpath.v output_dir_str in
@@ -114,10 +119,12 @@ let opam output_dir_str libraries =
       [] cmi_dirs
   in
   let ( let* ) = Result.bind in
+  let opamdir = Fpath.(output_dir / "_opam") in
+  let assetsdir = Fpath.(output_dir / "assets") in
   let _ =
     let* _ = Bos.OS.Dir.create output_dir in
-    let* _ = Bos.OS.Dir.create Fpath.(output_dir / "assets") in
-    let* _ = Bos.OS.Dir.create Fpath.(output_dir / "_opam") in
+    let* _ = Bos.OS.Dir.create opamdir in
+    let* _ = Bos.OS.Dir.create assetsdir in
     let findlib_dir = Ocamlfind.findlib_dir () |> Fpath.v in
 
     List.iter
@@ -125,7 +132,7 @@ let opam output_dir_str libraries =
         let d = Fpath.relativize ~root:findlib_dir dir |> Option.get in
         List.iter
           (fun f ->
-            let dest_dir = Fpath.(output_dir / "_opam" // d) in
+            let dest_dir = Fpath.(opamdir // d) in
             let dest = Fpath.(dest_dir / f) in
             let _ = Bos.OS.Dir.create ~path:true dest_dir in
             match Bos.OS.File.exists dest with
@@ -143,11 +150,11 @@ let opam output_dir_str libraries =
 
     List.iter
       (fun (meta_file, d) ->
-        let dest = Fpath.(output_dir / "_opam" // d) in
+        let dest = Fpath.(opamdir // d) in
         let _ = Bos.OS.Dir.create dest in
         Util.cp meta_file dest) meta_rels;
 
-    Out_channel.with_open_bin Fpath.(output_dir / "_opam" / "findlib_index" |> to_string)
+    Out_channel.with_open_bin Fpath.(opamdir / "findlib_index" |> to_string)
       (fun oc ->
         List.iter (fun (meta_file, d) ->
       let file = Fpath.filename meta_file in
@@ -159,7 +166,7 @@ let opam output_dir_str libraries =
         let dir = Ocamlfind.get_dir lib |> Result.get_ok in
         let archives = List.map (fun x -> Fpath.(dir / x)) archives in
         let d = Fpath.relativize ~root:findlib_dir dir |> Option.get in
-        let dest = Fpath.(output_dir / "_opam" // d) in
+        let dest = Fpath.(opamdir // d) in
         let _ = Bos.OS.Dir.create dest in
         let doit archive =
           let output = Fpath.(dest / ((Fpath.filename archive) ^ ".js")) in
@@ -182,14 +189,14 @@ let opam output_dir_str libraries =
     | None -> Format.eprintf "Failed to relativize %a wrt %a\n%!" Fpath.pp dir Fpath.pp findlib_dir;
     | Some dir ->
       Format.eprintf "Generating %a\n%!" Fpath.pp dir;
-      let dir = Fpath.((output_dir / "_opam") // dir) in
+      let dir = Fpath.(opamdir // dir) in
       let _ = Bos.OS.Dir.create dir in
       let oc = open_out Fpath.(dir / "dynamic_cmis.json" |> to_string) in
       Printf.fprintf oc "%s" dcs;
       close_out oc) init_cmis;
-      Format.eprintf "Numnber of cmis: %d\n%!" (List.length init_cmis);
+      Format.eprintf "Number of cmis: %d\n%!" (List.length init_cmis);
 
-  let () = Mk_backend.mk libraries (Fpath.(output_dir / "assets")) in
+  let () = Mk_backend.mk libraries assetsdir in
 
   `Ok ()
 
@@ -197,7 +204,7 @@ let generate output_dir_str odoc_dir files =
   let verbose = true in
   Eio_main.run @@ fun env ->
   Eio.Switch.run @@ fun sw ->
-  if verbose then Logs.set_level (Some Logs.Debug);
+  if verbose then Logs.set_level (Some Logs.Info);
   Logs.set_reporter (Logs_fmt.reporter ());
   let () = Worker_pool.start_workers env sw 16 in
   let output_dir = Fpath.v output_dir_str in
@@ -224,13 +231,17 @@ let generate output_dir_str odoc_dir files =
     let parent_id =
       Odoc.Id.of_fpath Fpath.(normalize dir)
     in
-    generate_page parent_id mld) files;
+    if Fpath.has_ext "mld" file then 
+      generate_page parent_id odoc_dir mld
+    else if Fpath.has_ext "md" file then
+      generate_page_md parent_id odoc_dir mld
+    else ()) files;
   List.iter
     (fun mld ->
       let meta = Odoc_notebook_lib.Mld.meta_of_mld mld in
       let dir, file = Fpath.split_base (Fpath.v mld) in
       let libs_list =
-        match meta with None -> [ "stdlib" ] | Some l -> "stdlib" :: l.libs
+        match meta with None -> [ "stdlib" ] | Some l -> "stdlib" :: (Result.get_ok l).libs
       in
       let libs =
         List.map
@@ -300,14 +311,17 @@ let generate output_dir_str odoc_dir files =
         Printf.sprintf "<ul>%s</ul>" (String.concat "" (List.map aux sidebar))
   in
 
+  let () = 
+    Mk_frontend.mk (Util.StringSet.empty)
+      Fpath.(output_dir / "assets")
+      "default_frontend";
+  in
+
   List.iter
     (fun mld ->
       let dir, file = Fpath.split_base (Fpath.v mld) in
-      let meta = Odoc_notebook_lib.Mld.meta_of_mld mld in
-      let libs_list =
-        match meta with None -> [ "stdlib" ] | Some l -> "stdlib" :: l.libs
-      in
-      let libs_set = Util.StringSet.of_list libs_list in
+      let meta =
+        if Fpath.has_ext "mld" file then Odoc_notebook_lib.Mld.meta_of_mld mld else (Some (Ok { libs=["core"]; html_scripts=[]; other_config=`Null })) in
       let odoc_file = Fpath.(set_ext "odoc" file |> to_string |> (fun x -> "page-" ^ x) |> v) in
       let odocl_file = Fpath.(set_ext "odocl" odoc_file) in
       let odoc_dir = Fpath.(append odoc_dir dir) in
@@ -315,7 +329,7 @@ let generate output_dir_str odoc_dir files =
       | None ->
         Odoc.html_generate ~output_dir:output_dir_str
           ~input_file:(Fpath.append odoc_dir odocl_file)
-         ~sidebar:(Fpath.v "sidebar.odoc-sidebar")
+          ~sidebar:(Fpath.v "sidebar.odoc-sidebar")
           ~as_json:false ()
       | Some meta ->
         let _ =
@@ -327,9 +341,6 @@ let generate output_dir_str odoc_dir files =
           Fpath.(append (v "html") dir / (Fpath.set_ext ".html.json" file |> to_string))
         in
         let x = Fpath.rem_ext file |> Fpath.to_string in
-        Mk_frontend.mk libs_set
-          Fpath.(output_dir / "assets")
-          ("frontend_" ^ x);
 
         let ic = open_in (Fpath.to_string json_file) in
         let yojson = Yojson.Safe.from_channel ic in
@@ -368,7 +379,7 @@ let generate output_dir_str odoc_dir files =
                   globaltoc;
                   odoc_assets_path = "/assets";
                   preamble = json.preamble;
-                  frontend = "frontend_" ^ x ^ ".js";
+                  frontend = "default_frontend.js";
                   content = json.content;
                   post_content;
                 })

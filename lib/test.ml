@@ -94,7 +94,7 @@ let test file =
   let mld = Mld.parse_mld file in
   let blocks = Blocks.parse_mld mld |> Result.get_ok in
   let meta = Mld.meta_of_parsed mld.parsed in
-  let libs = match meta with Some meta -> meta.libs | None -> [] in
+  let libs = match meta with Some meta -> (Result.get_ok meta).libs | None -> [] in
   Toplevel.init ~verbose:false ~silent:true ~verbose_findlib:false
     ~directives:[] ~packages:libs ~predicates:[] ();
   let results =

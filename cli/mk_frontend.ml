@@ -1,10 +1,8 @@
 (* To make a toplevel frontend.js *)
 
 let mk libs dir name =
-  let txt_libs =
-    Util.StringSet.elements libs |> List.map (fun lib -> Format.sprintf {|"%s"|} lib) |> String.concat "; " in
   let txt =
-    Format.sprintf {|let _ = Frontend.main [%s]|} txt_libs 
+    Format.sprintf {|let _ = Frontend.main []|} 
   in
   let file = Fpath.(dir / (name ^ "_frontend.ml")) in
   Util.write_file file [ txt ];

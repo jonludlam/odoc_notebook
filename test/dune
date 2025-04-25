@@ -1,0 +1,7 @@
+; (test
+;  (name test_odoc_notebook)
+;  (modes js)
+;  (libraries js_top_worker odoc_notebook.frontend))
+
+(cram
+(deps %{bin:odoc_notebook}))
