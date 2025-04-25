@@ -17,8 +17,15 @@ let initialise requires s callback =
   let open Fut.Result_syntax in
   let rpc = Js_top_worker_client_fut.start s 100000 callback in
   let* () =
-    W.init rpc { Toplevel_api_gen.path = "/static/cmis"; cmas = []; cmis={ static_cmis=[]; dynamic_cmis=[] }; findlib_index = "/_opam/findlib_index"; findlib_requires=requires; stdlib_dcs = "/_opam/ocaml/dynamic_cmis.json";
-    }
+    W.init rpc
+      {
+        Toplevel_api_gen.path = "/static/cmis";
+        cmas = [];
+        cmis = { static_cmis = []; dynamic_cmis = [] };
+        findlib_index = "/_opam/findlib_index";
+        findlib_requires = requires;
+        stdlib_dcs = "/_opam/ocaml/dynamic_cmis.json";
+      }
   in
   Fut.return (Ok rpc)
 
@@ -32,9 +39,7 @@ let styled_text tstyle text =
 let mime_els id mime_vals =
   List.map
     (fun mime ->
-      let l =
-        Astring.String.cuts ~sep:"/" mime.Toplevel_api_gen.mime_type
-      in
+      let l = Astring.String.cuts ~sep:"/" mime.Toplevel_api_gen.mime_type in
       match (l, mime.encoding) with
       | [ "image"; _ty ], Mime_printer.Base64 ->
           let src = "data:" ^ mime.mime_type ^ ";base64," ^ mime.data in
@@ -51,7 +56,6 @@ let mime_els id mime_vals =
     mime_vals
   |> List.flatten
 
-
 let append_to_output id output _mime_only =
   let el = Brr.Document.find_el_by_id Brr.G.document (Jstr.v id) in
   match el with
@@ -63,7 +67,7 @@ let append_to_output id output _mime_only =
         |> List.concat |> String.concat "\n" |> styled_text "color:white"
         |> El.pre ~at:[ At.class' (Jstr.v "stdout") ]
       in
-      let mime_els = mime_els id output.mime_vals in 
+      let mime_els = mime_els id output.mime_vals in
       El.set_children el ([ stdout ] @ mime_els)
 
 let basic_setup =
@@ -122,11 +126,7 @@ let of_jv : Jv.t -> ostate =
   { id; output_id; rpc; solution; ty; mime_only; hidden }
 
 let oeffect = Code_mirror.State.StateEffect.define to_jv of_jv
-
-let autorun_effect =
-  Code_mirror.State.StateEffect.define
-    Jv.of_bool
-    Jv.to_bool
+let autorun_effect = Code_mirror.State.StateEffect.define Jv.of_bool Jv.to_bool
 
 let autorun_state_field =
   let update cur t =
@@ -138,9 +138,11 @@ let autorun_state_field =
           | Some b -> b
           | _ -> cur
         else cur)
-      effects cur in
+      effects cur
+  in
   Code_mirror.State.StateField.define Jv.of_bool Jv.to_bool
-  ~create:(fun _ -> false) ~update
+    ~create:(fun _ -> false)
+    ~update
 
 let exec_js id _ =
   let fun_name = Printf.sprintf "%s(globalThis)" id in
@@ -170,12 +172,18 @@ let run_code st code v =
             Console.(log [ str ("JS received: " ^ res) ]);
             let _ = Js_of_ocaml.Js.Unsafe.eval_string res in
             (* exec_js st.id (); *)
-            let changes = Code_mirror.State.Transaction.create ~effects:[toggle_autorun] () in
+            let changes =
+              Code_mirror.State.Transaction.create ~effects:[ toggle_autorun ]
+                ()
+            in
             Code_mirror.View.EditorView.dispatch v changes;
             Fut.return (Ok ())
         | Error _e ->
             Console.(log [ str "error" ]);
-            let changes = Code_mirror.State.Transaction.create ~effects:[toggle_autorun] () in
+            let changes =
+              Code_mirror.State.Transaction.create ~effects:[ toggle_autorun ]
+                ()
+            in
             Code_mirror.View.EditorView.dispatch v changes;
             Fut.return (Ok ()))
   | OCaml ->
@@ -185,18 +193,26 @@ let run_code st code v =
               (* Console.(log [ str ("OCaml received: " ^ (Option.value ~default:"" res.stdout)) ]); *)
               (* append_to_output st.output_id res st.mime_only; *)
               (* Console.log [ Option.get (Option.map Jv.of_string res.stdout) ]; *)
-              let changes = Code_mirror.State.Transaction.create ~effects:[toggle_autorun] () in
+              let changes =
+                Code_mirror.State.Transaction.create ~effects:[ toggle_autorun ]
+                  ()
+              in
               Code_mirror.View.EditorView.dispatch v changes;
-              let el = Brr.Document.find_el_by_id Brr.G.document (Jstr.v st.output_id) in
+              let el =
+                Brr.Document.find_el_by_id Brr.G.document (Jstr.v st.output_id)
+              in
               (match el with
               | None -> Console.log [ Jv.of_string "No output element" ]
               | Some el ->
-                  let mime_els = mime_els st.output_id res.mime_vals in 
-                  El.set_children el (mime_els));
+                  let mime_els = mime_els st.output_id res.mime_vals in
+                  El.set_children el mime_els);
               Console.(log [ str "All finished" ]);
               Fut.return (Ok ())
           | Error _e ->
-              let changes = Code_mirror.State.Transaction.create ~effects:[toggle_autorun] () in
+              let changes =
+                Code_mirror.State.Transaction.create ~effects:[ toggle_autorun ]
+                  ()
+              in
               Code_mirror.View.EditorView.dispatch v changes;
               Console.log [ Jv.of_string "error" ];
               Fut.return (Error ()))
@@ -204,9 +220,12 @@ let run_code st code v =
       Fut.bind (W.exec_toplevel st.rpc code) (fun res ->
           match res with
           | Error _ ->
-            let changes = Code_mirror.State.Transaction.create ~effects:[toggle_autorun] () in
-            Code_mirror.View.EditorView.dispatch v changes;
-            Fut.return (Ok ())
+              let changes =
+                Code_mirror.State.Transaction.create ~effects:[ toggle_autorun ]
+                  ()
+              in
+              Code_mirror.View.EditorView.dispatch v changes;
+              Fut.return (Ok ())
           | Ok s ->
               let cur_length =
                 Code_mirror.View.EditorView.state v
@@ -220,31 +239,36 @@ let run_code st code v =
                   insert = Some s.script;
                 }
               in
-              let changes = Code_mirror.State.Transaction.create ~changes ~effects:[toggle_autorun] () in
+              let changes =
+                Code_mirror.State.Transaction.create ~changes
+                  ~effects:[ toggle_autorun ] ()
+              in
               Code_mirror.View.EditorView.dispatch v changes;
-              let el = Brr.Document.find_el_by_id Brr.G.document (Jstr.v st.output_id) in
+              let el =
+                Brr.Document.find_el_by_id Brr.G.document (Jstr.v st.output_id)
+              in
               (match el with
               | None -> Console.log [ Jv.of_string "No output element" ]
               | Some el ->
-                  let mime_els = mime_els st.output_id s.mime_vals in 
-                  El.set_children el (mime_els);
-              );
+                  let mime_els = mime_els st.output_id s.mime_vals in
+                  El.set_children el mime_els);
               Fut.return (Ok ()))
 
 let panel_constructor (st : ostate) (v : Code_mirror.View.EditorView.t) =
   let run_button =
-    Brr.El.(button ~at:[ At.class' (Jstr.v "panel") ] [ txt (Jstr.v "Run") ]) in
-  let run =
-    match st.ty with
-    | Other -> []
-    | _ -> [run_button]
+    Brr.El.(button ~at:[ At.class' (Jstr.v "panel") ] [ txt (Jstr.v "Run") ])
   in
+  let run = match st.ty with Other -> [] | _ -> [ run_button ] in
   (* let autorun_txt autorun =
     if autorun
     then Jstr.v "Autorun: On"
     else Jstr.v "Autorun: Off"
   in *)
-  let autorun = Code_mirror.State.EditorState.field (Code_mirror.View.EditorView.state v) autorun_state_field in 
+  let autorun =
+    Code_mirror.State.EditorState.field
+      (Code_mirror.View.EditorView.state v)
+      autorun_state_field
+  in
   (* let autorun_span =
     Brr.El.(span [ txt (autorun_txt autorun) ])
   in *)
@@ -290,13 +314,14 @@ let panel_constructor (st : ostate) (v : Code_mirror.View.EditorView.t) =
     | None -> []
   in
   let update v =
-      let state = Code_mirror.View.EditorView.Update.state v in
-      let _autorun = Code_mirror.State.EditorState.field state autorun_state_field in
-      ()
-      (* let text = autorun_txt autorun in *)
-      (* El.set_children autorun_span El.[ txt text ] *)
+    let state = Code_mirror.View.EditorView.Update.state v in
+    let _autorun =
+      Code_mirror.State.EditorState.field state autorun_state_field
+    in
+    ()
+    (* let text = autorun_txt autorun in *)
+    (* El.set_children autorun_span El.[ txt text ] *)
   in
-
 
   let clickfn _ =
     let code =
@@ -306,8 +331,7 @@ let panel_constructor (st : ostate) (v : Code_mirror.View.EditorView.t) =
     ignore @@ run_code st code v
   in
   ignore (Brr.Ev.listen Ev.click clickfn (El.as_target run_button));
-  if autorun then
-    ignore @@ clickfn ();
+  if autorun then ignore @@ clickfn ();
   (* let id = Brr.El.span ~at:[At.class' (Jstr.v "panel_id")] [ Brr.El.txt' st.id ] in *)
   let dom = Brr.El.(div (run @ show_solution)) in
   Code_mirror.View.Panel.create ~top:true ~update dom
@@ -315,7 +339,8 @@ let panel_constructor (st : ostate) (v : Code_mirror.View.EditorView.t) =
 let ostate =
   let provide field =
     Code_mirror.State.Facet.from' Code_mirror.View.showPanel field (fun st ->
-        Some (panel_constructor st)) in
+        Some (panel_constructor st))
+  in
 
   let update cur t =
     let effects = Code_mirror.State.Transaction.effects t in
@@ -326,12 +351,12 @@ let ostate =
           | Some b -> b
           | _ -> cur
         else cur)
-      effects cur in
+      effects cur
+  in
 
   Code_mirror.State.StateField.define to_jv of_jv
     ~create:(fun _ -> failwith "unset")
     ~provide ~update
-
 
 let init ?doc ?(exts = []) () =
   let open Code_mirror in
@@ -357,7 +382,9 @@ let make_editor rpc id elt =
     | _ -> None
   in
   let output_id = "output-" ^ string_of_int id in
-  let _ = Option.iter (El.set_at (Jstr.v "id") (Some (Jstr.v output_id))) output in
+  let _ =
+    Option.iter (El.set_at (Jstr.v "id") (Some (Jstr.v output_id))) output
+  in
   let doc = El.txt_text (El.children elt |> List.hd) |> Jstr.to_string in
   let classes_iter =
     Jv.call (Jv.get (Jv.repr parent) "classList") "values" [||]
@@ -381,7 +408,8 @@ let make_editor rpc id elt =
   let ty =
     if List.mem "language-ocaml" str_classes then Toplevel
     else if List.mem "language-ocamltop" str_classes then Toplevel
-    else Other in
+    else Other
+  in
   let hidden = List.mem "hidden" str_classes in
   Console.log [ Jstr.v ("Classes: " ^ String.concat ", " str_classes) ];
   let autorun = List.mem "autorun" str_classes in
@@ -409,13 +437,17 @@ let make_editor rpc id elt =
         })
   in
   if hidden then
-    El.set_at (Jstr.v "style") (Some (Jstr.v "display: none;")) (parent_exn parent);
+    El.set_at (Jstr.v "style")
+      (Some (Jstr.v "display: none;"))
+      (parent_exn parent);
   let autorun_extension =
     Code_mirror.State.StateField.init autorun_state_field (fun _ -> autorun)
   in
   let editor, view =
     init ~doc
-      ~exts:(autorun_extension :: ostate_extension :: ocaml :: theme :: merlin_extensions)
+      ~exts:
+        (autorun_extension :: ostate_extension :: ocaml :: theme
+       :: merlin_extensions)
       ()
   in
   El.append_children el [ Code_mirror.View.EditorView.dom view ];
@@ -464,10 +496,7 @@ let init_page requires =
   Console.log [ Jv.of_string "Initialised" ];
   let* _o = W.setup rpc () in
   let ocaml_elts =
-    El.fold_find_by_selector
-      (fun x y -> x :: y)
-      (Jstr.v "pre code")
-      []
+    El.fold_find_by_selector (fun x y -> x :: y) (Jstr.v "pre code") []
     |> List.rev
   in
   let _editors = List.mapi (make_editor rpc) ocaml_elts in
@@ -505,37 +534,39 @@ open Fut.Syntax
 let main _requires =
   let meta_elts =
     El.fold_find_by_selector
-        (fun elt y ->
-          let parent_exn elt =
-            match El.parent elt with Some e -> e | None -> failwith "no parent"
-          in
-          let parent = parent_exn elt in
-          let classes_iter =
-            Jv.call (Jv.get (Jv.repr parent) "classList") "values" [||]
-          in
-          let str_classes =
-            Jv.It.fold Jv.to_string (fun x y -> x :: y) classes_iter []
-          in
-          if List.mem "language-meta" str_classes then
-            let meta =
-              let doc = El.txt_text (El.children elt |> List.hd) |> Jstr.to_string in
-              let y = Yojson.Safe.from_string doc in
-              [y]
+      (fun elt y ->
+        let parent_exn elt =
+          match El.parent elt with Some e -> e | None -> failwith "no parent"
+        in
+        let parent = parent_exn elt in
+        let classes_iter =
+          Jv.call (Jv.get (Jv.repr parent) "classList") "values" [||]
+        in
+        let str_classes =
+          Jv.It.fold Jv.to_string (fun x y -> x :: y) classes_iter []
+        in
+        if List.mem "language-meta" str_classes then
+          let meta =
+            let doc =
+              El.txt_text (El.children elt |> List.hd) |> Jstr.to_string
             in
-            meta
-          else 
-            y)
-      (Jstr.v "pre code")
-      []
+            let y = Yojson.Safe.from_string doc in
+            [ y ]
+          in
+          meta
+        else y)
+      (Jstr.v "pre code") []
     |> List.rev
   in
-  let meta = (match meta_elts with
-  | [] -> Console.log [ Jv.of_string "No meta elements found" ]; None
-  | [x] ->
-    (match meta_of_yojson x with Ok m -> Some m | _ -> None)
-
-  | _ -> None) in
-  let libs = match meta with | Some m -> m.libs | None -> [] in
+  let meta =
+    match meta_elts with
+    | [] ->
+        Console.log [ Jv.of_string "No meta elements found" ];
+        None
+    | [ x ] -> ( match meta_of_yojson x with Ok m -> Some m | _ -> None)
+    | _ -> None
+  in
+  let libs = match meta with Some m -> m.libs | None -> [] in
 
   Console.(log [ str "DOM content loaded." ]);
   let* _ev = Ev.next Ev.load (Window.as_target G.window) in

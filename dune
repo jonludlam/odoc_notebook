@@ -7,7 +7,6 @@
 ;   test.mld.out
 ;   (run odoc_notebook test %{dep:test.mld})))
 
-
 ; (rule
 ;  (with-stdout-to
 ;   mime_test.mld.out

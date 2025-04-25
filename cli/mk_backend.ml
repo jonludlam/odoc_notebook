@@ -5,8 +5,9 @@ let mk libs dir =
   let file = Fpath.(dir / "worker.ml") in
   Util.write_file file [ txt ];
   let cmd =
-    Bos.Cmd.(v "ocamlfind" % "ocamlc" % "-package" % "js_of_ocaml-ppx.as-lib"
-     % "-package" % "js_top_worker-web")
+    Bos.Cmd.(
+      v "ocamlfind" % "ocamlc" % "-package" % "js_of_ocaml-ppx.as-lib"
+      % "-package" % "js_top_worker-web")
   in
   let cmd = Bos.Cmd.(cmd % "-linkpkg" % "-linkall" % Fpath.to_string file) in
   let cmd = Bos.Cmd.(cmd % "-o" % Fpath.(dir / "worker.bc" |> to_string)) in
@@ -25,23 +26,27 @@ let mk libs dir =
   in
   let cmd =
     Bos.Cmd.(
-      v "js_of_ocaml" % "--toplevel" % "--no-cmis" % "--linkall" % "--pretty" % "--effects=cps")
+      v "js_of_ocaml" % "--toplevel" % "--no-cmis" % "--linkall" % "--pretty"
+      % "--effects=cps")
   in
   let cmd =
     List.fold_right
       (fun a cmd -> Bos.Cmd.(cmd % a))
-      (js_files @ [ "+dynlink.js"; "+toplevel.js";
-   "+bigstringaf/runtime.js";
-  "+merlin-js.worker/stubs.js"
-])
+      (js_files
+      @ [
+          "+dynlink.js";
+          "+toplevel.js";
+          "+bigstringaf/runtime.js";
+          "+merlin-js.worker/stubs.js";
+        ])
       cmd
   in
   let cmd =
     Bos.Cmd.(
       cmd
-      % Fpath.(dir / ("worker.bc") |> to_string)
+      % Fpath.(dir / "worker.bc" |> to_string)
       % "-o"
-      % Fpath.(dir / ("worker.js") |> to_string))
+      % Fpath.(dir / "worker.js" |> to_string))
   in
   let _ = Util.lines_of_process cmd in
   ()

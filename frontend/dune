@@ -21,7 +21,8 @@
  (public_name odoc_notebook.frontend)
  (modes byte)
  (modules frontend)
- (preprocess (pps ppx_deriving_yojson))
+ (preprocess
+  (pps ppx_deriving_yojson))
  (libraries
   code-mirror
   astring

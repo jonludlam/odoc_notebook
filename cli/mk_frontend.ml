@@ -1,9 +1,7 @@
 (* To make a toplevel frontend.js *)
 
 let mk libs dir name =
-  let txt =
-    Format.sprintf {|let _ = Frontend.main []|} 
-  in
+  let txt = Format.sprintf {|let _ = Frontend.main []|} in
   let file = Fpath.(dir / (name ^ "_frontend.ml")) in
   Util.write_file file [ txt ];
   let cmd =

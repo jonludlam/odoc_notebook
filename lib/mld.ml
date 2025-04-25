@@ -40,9 +40,9 @@ let meta_of_parsed parsed =
   in
   match meta with
   | None -> None
-  | Some meta -> (
+  | Some meta ->
       let y = Yojson.Safe.from_string meta in
-      Some (meta_of_yojson y))
+      Some (meta_of_yojson y)
 
 let meta_of_mld mld_file =
   let { parsed; _ } = parse_mld mld_file in

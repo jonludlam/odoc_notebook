@@ -1,0 +1,12 @@
+{0 LearnO}
+
+{@meta hidden[
+{ libs: ["astring"] }
+]}
+
+Let's figure out how to use the `note` library.
+
+{@ocamltop[
+# Astring.String.cuts ~sep:"," "a,b,c";;
+]}
+

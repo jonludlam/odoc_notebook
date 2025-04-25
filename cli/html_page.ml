@@ -83,20 +83,18 @@ let create
   let json =
     `O
       ([
-        ("title", `String title);
-        ("header", `String header);
-        ("odoc_assets_path", `String odoc_assets_path);
-        ("breadcrumbs", `String breadcrumbs);
-        ("preamble", `String preamble);
-        ("frontend", `String frontend);
-        ("localtoc", match localtoc with Some l -> `String l | None -> `Null);
-        ("globaltoc", `String globaltoc);
-        ("content", `String content);
-        ("post_content", `String post_content);
-      ] @
-      (match localtoc with
-      | Some l -> [ ("localtoc", `String l) ]
-      | None -> []))
+         ("title", `String title);
+         ("header", `String header);
+         ("odoc_assets_path", `String odoc_assets_path);
+         ("breadcrumbs", `String breadcrumbs);
+         ("preamble", `String preamble);
+         ("frontend", `String frontend);
+         ("localtoc", match localtoc with Some l -> `String l | None -> `Null);
+         ("globaltoc", `String globaltoc);
+         ("content", `String content);
+         ("post_content", `String post_content);
+       ]
+      @ match localtoc with Some l -> [ ("localtoc", `String l) ] | None -> [])
   in
   try Ok (Mustache.render template json)
   with Mustache.Render_error err ->

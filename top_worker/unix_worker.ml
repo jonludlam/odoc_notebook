@@ -93,14 +93,13 @@ let serve_requests rpcfn path =
   done
 
 let handle_findlib_error = function
-  | Failure msg ->
-      Printf.fprintf stderr "%s" msg
-  | Fl_package_base.No_such_package(pkg, reason) ->
-      Printf.fprintf stderr "No such package: %s%s\n" pkg (if reason <> "" then " - " ^ reason else "")
+  | Failure msg -> Printf.fprintf stderr "%s" msg
+  | Fl_package_base.No_such_package (pkg, reason) ->
+      Printf.fprintf stderr "No such package: %s%s\n" pkg
+        (if reason <> "" then " - " ^ reason else "")
   | Fl_package_base.Package_loop pkg ->
       Printf.fprintf stderr "Package requires itself: %s\n" pkg
-  | exn ->
-      raise exn
+  | exn -> raise exn
 
 module Server = Js_top_worker_rpc.Toplevel_api_gen.Make (Impl.IdlM.GenServer ())
 
@@ -112,16 +111,19 @@ module S : Impl.S = struct
   let create_file ~name:_ ~content:_ = failwith "Not implemented"
   let import_scripts _ = failwith "Unimplemented"
   let init_function _ = failwith "Unimplemented"
-
   let get_stdlib_dcs _ = []
-
   let findlib_init _ = ()
+
   let require () packages =
     try
-      let eff_packages = Findlib.package_deep_ancestors !Topfind.predicates packages in
-      Topfind.load eff_packages; []
+      let eff_packages =
+        Findlib.package_deep_ancestors !Topfind.predicates packages
+      in
+      Topfind.load eff_packages;
+      []
     with exn ->
-      handle_findlib_error exn; []
+      handle_findlib_error exn;
+      []
 end
 
 module U = Impl.Make (S)

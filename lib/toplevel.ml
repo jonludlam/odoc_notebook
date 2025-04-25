@@ -2,16 +2,14 @@ open Js_top_worker_rpc
 module M = Idl.IdM (* Server is synchronous *)
 module IdlM = Idl.Make (M)
 
-
 let handle_findlib_error = function
-  | Failure msg ->
-      Printf.fprintf stderr "%s" msg
-  | Fl_package_base.No_such_package(pkg, reason) ->
-      Printf.fprintf stderr "No such package: %s%s\n" pkg (if reason <> "" then " - " ^ reason else "")
+  | Failure msg -> Printf.fprintf stderr "%s" msg
+  | Fl_package_base.No_such_package (pkg, reason) ->
+      Printf.fprintf stderr "No such package: %s%s\n" pkg
+        (if reason <> "" then " - " ^ reason else "")
   | Fl_package_base.Package_loop pkg ->
       Printf.fprintf stderr "Package requires itself: %s\n" pkg
-  | exn ->
-      raise exn
+  | exn -> raise exn
 
 module UnixWorker = struct
   let capture f () =
@@ -62,24 +60,25 @@ module UnixWorker = struct
         Sys.remove filename_out;
         Sys.remove filename_err)
 
-        type findlib_t = unit
+  type findlib_t = unit
 
-        let sync_get _ = None
-        let create_file ~name:_ ~content:_ = failwith "Not implemented"
-        let import_scripts = function
-          | [] -> ()
-          | _ -> failwith "Unimplemented 1"
-        let init_function _ = failwith "Unimplemented 2" 
-      
-        let get_stdlib_dcs _ = []
-      
-        let findlib_init _ = ()
-        let require () packages =
-          try
-            let eff_packages = Findlib.package_deep_ancestors !Topfind.predicates packages in
-            Topfind.load eff_packages; []
-          with exn ->
-            handle_findlib_error exn; []
+  let sync_get _ = None
+  let create_file ~name:_ ~content:_ = failwith "Not implemented"
+  let import_scripts = function [] -> () | _ -> failwith "Unimplemented 1"
+  let init_function _ = failwith "Unimplemented 2"
+  let get_stdlib_dcs _ = []
+  let findlib_init _ = ()
+
+  let require () packages =
+    try
+      let eff_packages =
+        Findlib.package_deep_ancestors !Topfind.predicates packages
+      in
+      Topfind.load eff_packages;
+      []
+    with exn ->
+      handle_findlib_error exn;
+      []
 end
 
 module U = Js_top_worker.Impl.Make (UnixWorker)

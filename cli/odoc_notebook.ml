@@ -64,37 +64,52 @@ let gen_cmis cmis =
     let prefixes = Util.StringSet.(of_list prefixes |> to_list) in
     let findlib_dir = Ocamlfind.findlib_dir () |> Fpath.v in
     let d = Fpath.relativize ~root:findlib_dir dir |> Option.get in
-    let dcs = { Js_top_worker_rpc.Toplevel_api_gen.dcs_url=Fpath.(v "/_opam" // d |> to_string);
-        dcs_toplevel_modules = List.map String.capitalize_ascii non_hidden; 
-        dcs_file_prefixes = prefixes } in
-    (dir, Jsonrpc.to_string (Rpcmarshal.marshal Js_top_worker_rpc.Toplevel_api_gen.typ_of_dynamic_cmis dcs))
+    let dcs =
+      {
+        Js_top_worker_rpc.Toplevel_api_gen.dcs_url =
+          Fpath.(v "/_opam" // d |> to_string);
+        dcs_toplevel_modules = List.map String.capitalize_ascii non_hidden;
+        dcs_file_prefixes = prefixes;
+      }
+    in
+    ( dir,
+      Jsonrpc.to_string
+        (Rpcmarshal.marshal
+           Js_top_worker_rpc.Toplevel_api_gen.typ_of_dynamic_cmis dcs) )
   in
   List.map gen_one cmis
 
 let generate_page parent_id odoc_dir mld =
   Odoc.compile ~output_dir:odoc_dir ~includes:Fpath.Set.empty
-    ~input_file:(Fpath.v mld)
-    ~parent_id
-    ~warnings_tag:(Some "odoc_notebook") ~ignore_output:true
+    ~input_file:(Fpath.v mld) ~parent_id ~warnings_tag:(Some "odoc_notebook")
+    ~ignore_output:true
 
 let generate_page_md parent_id odoc_dir mld =
-  Odoc.compile_md ~output_dir:odoc_dir
-    ~input_file:(Fpath.v mld)
-    ~parent_id
+  Odoc.compile_md ~output_dir:odoc_dir ~input_file:(Fpath.v mld) ~parent_id
 
 let opam output_dir_str libraries =
-  let libraries = match Ocamlfind.deps libraries with | Ok l -> Util.StringSet.of_list ("stdlib"::l) | Error _ -> failwith "Bad libs" in
+  let libraries =
+    match Ocamlfind.deps libraries with
+    | Ok l -> Util.StringSet.of_list ("stdlib" :: l)
+    | Error _ -> failwith "Bad libs"
+  in
   let verbose = true in
   Eio_main.run @@ fun env ->
   Eio.Switch.run @@ fun sw ->
   if verbose then Logs.set_level (Some Logs.Info) else Logs.set_level None;
   (* Logs.set_reporter (Logs_fmt.reporter ()); *)
   let () = Worker_pool.start_workers env sw 16 in
-  Logs.debug (fun m -> m "Libraries: %a" (Fmt.list ~sep:Fmt.comma Fmt.string) (Util.StringSet.elements libraries));
+  Logs.debug (fun m ->
+      m "Libraries: %a"
+        (Fmt.list ~sep:Fmt.comma Fmt.string)
+        (Util.StringSet.elements libraries));
   let output_dir = Fpath.v output_dir_str in
   let meta_files =
-    List.map (fun lib ->
-      Ocamlfind.meta_file lib) (Util.StringSet.elements libraries) |> Util.StringSet.of_list in
+    List.map
+      (fun lib -> Ocamlfind.meta_file lib)
+      (Util.StringSet.elements libraries)
+    |> Util.StringSet.of_list
+  in
   let cmi_dirs =
     match Ocamlfind.deps (Util.StringSet.to_list libraries) with
     | Ok libs ->
@@ -141,24 +156,34 @@ let opam output_dir_str libraries =
             | Error _ -> failwith "file exists failed")
           files)
       cmis;
-    
+
     let meta_rels =
-      Util.StringSet.fold (fun meta_file acc ->
-        let meta_file = Fpath.v meta_file in
-        let d = Fpath.relativize ~root:findlib_dir meta_file |> Option.get |> Fpath.parent in
-        (meta_file, d) :: acc) meta_files [] in
+      Util.StringSet.fold
+        (fun meta_file acc ->
+          let meta_file = Fpath.v meta_file in
+          let d =
+            Fpath.relativize ~root:findlib_dir meta_file
+            |> Option.get |> Fpath.parent
+          in
+          (meta_file, d) :: acc)
+        meta_files []
+    in
 
     List.iter
       (fun (meta_file, d) ->
         let dest = Fpath.(opamdir // d) in
         let _ = Bos.OS.Dir.create dest in
-        Util.cp meta_file dest) meta_rels;
+        Util.cp meta_file dest)
+      meta_rels;
 
-    Out_channel.with_open_bin Fpath.(opamdir / "findlib_index" |> to_string)
+    Out_channel.with_open_bin
+      Fpath.(opamdir / "findlib_index" |> to_string)
       (fun oc ->
-        List.iter (fun (meta_file, d) ->
-      let file = Fpath.filename meta_file in
-      Printf.fprintf oc "/_opam/%s\n" Fpath.(d / file |> to_string)) meta_rels);
+        List.iter
+          (fun (meta_file, d) ->
+            let file = Fpath.filename meta_file in
+            Printf.fprintf oc "/_opam/%s\n" Fpath.(d / file |> to_string))
+          meta_rels);
 
     Util.StringSet.iter
       (fun lib ->
@@ -169,32 +194,39 @@ let opam output_dir_str libraries =
         let dest = Fpath.(opamdir // d) in
         let _ = Bos.OS.Dir.create dest in
         let doit archive =
-          let output = Fpath.(dest / ((Fpath.filename archive) ^ ".js")) in
+          let output = Fpath.(dest / (Fpath.filename archive ^ ".js")) in
           let cmd =
-            Bos.Cmd.(v "js_of_ocaml" % "compile" % "--effects=cps" % (Fpath.to_string archive) % "-o" % (Fpath.to_string output)) in
+            Bos.Cmd.(
+              v "js_of_ocaml" % "compile" % "--effects=cps"
+              % Fpath.to_string archive % "-o" % Fpath.to_string output)
+          in
           let _ = Util.lines_of_process cmd in
           ()
         in
-          List.iter doit archives ) libraries;
-  
+        List.iter doit archives)
+      libraries;
 
-        (* Format.eprintf "@[<hov 2>dir: %a [%a]@]\n%!" Fpath.pp dir (Fmt.list ~sep:Fmt.sp Fmt.string) files) cmis; *)
+    (* Format.eprintf "@[<hov 2>dir: %a [%a]@]\n%!" Fpath.pp dir (Fmt.list ~sep:Fmt.sp Fmt.string) files) cmis; *)
     Ok ()
   in
   let init_cmis = gen_cmis cmis in
-  List.iter (fun (dir, dcs) ->
-    let findlib_dir = Ocamlfind.findlib_dir () |> Fpath.v in
-    let d = Fpath.relativize ~root:findlib_dir dir in
-    match d with
-    | None -> Format.eprintf "Failed to relativize %a wrt %a\n%!" Fpath.pp dir Fpath.pp findlib_dir;
-    | Some dir ->
-      Format.eprintf "Generating %a\n%!" Fpath.pp dir;
-      let dir = Fpath.(opamdir // dir) in
-      let _ = Bos.OS.Dir.create dir in
-      let oc = open_out Fpath.(dir / "dynamic_cmis.json" |> to_string) in
-      Printf.fprintf oc "%s" dcs;
-      close_out oc) init_cmis;
-      Format.eprintf "Number of cmis: %d\n%!" (List.length init_cmis);
+  List.iter
+    (fun (dir, dcs) ->
+      let findlib_dir = Ocamlfind.findlib_dir () |> Fpath.v in
+      let d = Fpath.relativize ~root:findlib_dir dir in
+      match d with
+      | None ->
+          Format.eprintf "Failed to relativize %a wrt %a\n%!" Fpath.pp dir
+            Fpath.pp findlib_dir
+      | Some dir ->
+          Format.eprintf "Generating %a\n%!" Fpath.pp dir;
+          let dir = Fpath.(opamdir // dir) in
+          let _ = Bos.OS.Dir.create dir in
+          let oc = open_out Fpath.(dir / "dynamic_cmis.json" |> to_string) in
+          Printf.fprintf oc "%s" dcs;
+          close_out oc)
+    init_cmis;
+  Format.eprintf "Number of cmis: %d\n%!" (List.length init_cmis);
 
   let () = Mk_backend.mk libraries assetsdir in
 
@@ -209,15 +241,15 @@ let generate output_dir_str odoc_dir files =
   let () = Worker_pool.start_workers env sw 16 in
   let output_dir = Fpath.v output_dir_str in
   let lib_map =
-      let ic = open_in Fpath.(odoc_dir / "lib_map.json" |> Fpath.to_string) in
-      let yojson = Yojson.Safe.from_channel ic in
-      let lib_map = Yojson.Safe.Util.to_assoc yojson in
-      let get_str x =
-        Fpath.(odoc_dir // (Yojson.Safe.Util.to_string x |> Fpath.v))
-      in
-      List.fold_left
-        (fun acc (k, v) -> Util.StringMap.add k (get_str v) acc)
-        Util.StringMap.empty lib_map
+    let ic = open_in Fpath.(odoc_dir / "lib_map.json" |> Fpath.to_string) in
+    let yojson = Yojson.Safe.from_channel ic in
+    let lib_map = Yojson.Safe.Util.to_assoc yojson in
+    let get_str x =
+      Fpath.(odoc_dir // (Yojson.Safe.Util.to_string x |> Fpath.v))
+    in
+    List.fold_left
+      (fun acc (k, v) -> Util.StringMap.add k (get_str v) acc)
+      Util.StringMap.empty lib_map
   in
   let ( let* ) = Result.bind in
   let notebook_css =
@@ -226,22 +258,23 @@ let generate output_dir_str odoc_dir files =
   Printf.fprintf notebook_css "%s" Notebook_css.notebook_css;
   close_out notebook_css;
   ignore (Odoc.support_files Fpath.(output_dir / "assets"));
-  List.iter (fun mld ->
-    let (dir, file) = Fpath.split_base (Fpath.v mld) in
-    let parent_id =
-      Odoc.Id.of_fpath Fpath.(normalize dir)
-    in
-    if Fpath.has_ext "mld" file then 
-      generate_page parent_id odoc_dir mld
-    else if Fpath.has_ext "md" file then
-      generate_page_md parent_id odoc_dir mld
-    else ()) files;
+  List.iter
+    (fun mld ->
+      let dir, file = Fpath.split_base (Fpath.v mld) in
+      let parent_id = Odoc.Id.of_fpath Fpath.(normalize dir) in
+      if Fpath.has_ext "mld" file then generate_page parent_id odoc_dir mld
+      else if Fpath.has_ext "md" file then
+        generate_page_md parent_id odoc_dir mld
+      else ())
+    files;
   List.iter
     (fun mld ->
       let meta = Odoc_notebook_lib.Mld.meta_of_mld mld in
       let dir, file = Fpath.split_base (Fpath.v mld) in
       let libs_list =
-        match meta with None -> [ "stdlib" ] | Some l -> "stdlib" :: (Result.get_ok l).libs
+        match meta with
+        | None -> [ "stdlib" ]
+        | Some l -> "stdlib" :: (Result.get_ok l).libs
       in
       let libs =
         List.map
@@ -249,17 +282,18 @@ let generate output_dir_str odoc_dir files =
           libs_list
       in
       let x = Fpath.set_ext ".odoc" file in
-      let odoc_file = "page-" ^ (Fpath.to_string x) in
+      let odoc_file = "page-" ^ Fpath.to_string x in
       let odoc_path = Fpath.(append odoc_dir dir) in
       Odoc.link
         ~input_file:Fpath.(odoc_path / odoc_file)
-        ~libs ~docs:["site",odoc_dir] ~includes:[] ~ignore_output:true ~custom_layout:true
+        ~libs
+        ~docs:[ ("site", odoc_dir) ]
+        ~includes:[] ~ignore_output:true ~custom_layout:true
         ~warnings_tags:[ "odoc_notebook" ] ())
     files;
 
-  Odoc.compile_index ~json:false
-    ~roots:[ odoc_dir ]
-    ~simplified:false ~wrap:false
+  Odoc.compile_index ~json:false ~roots:[ odoc_dir ] ~simplified:false
+    ~wrap:false
     ~output_file:(Fpath.v "index.odoc-index")
     ();
 
@@ -267,7 +301,9 @@ let generate output_dir_str odoc_dir files =
     (Fpath.v "index.odoc-index")
     ();
 
-  Odoc.sidebar_generate ~output_file:(Fpath.v "sidebar.odoc-sidebar") ~json:false
+  Odoc.sidebar_generate
+    ~output_file:(Fpath.v "sidebar.odoc-sidebar")
+    ~json:false
     (Fpath.v "index.odoc-index")
     ();
 
@@ -311,88 +347,97 @@ let generate output_dir_str odoc_dir files =
         Printf.sprintf "<ul>%s</ul>" (String.concat "" (List.map aux sidebar))
   in
 
-  let () = 
-    Mk_frontend.mk (Util.StringSet.empty)
+  let () =
+    Mk_frontend.mk Util.StringSet.empty
       Fpath.(output_dir / "assets")
-      "default_frontend";
+      "default_frontend"
   in
 
   List.iter
     (fun mld ->
       let dir, file = Fpath.split_base (Fpath.v mld) in
       let meta =
-        if Fpath.has_ext "mld" file then Odoc_notebook_lib.Mld.meta_of_mld mld else (Some (Ok { libs=["core"]; html_scripts=[]; other_config=`Null })) in
-      let odoc_file = Fpath.(set_ext "odoc" file |> to_string |> (fun x -> "page-" ^ x) |> v) in
+        if Fpath.has_ext "mld" file then Odoc_notebook_lib.Mld.meta_of_mld mld
+        else
+          Some
+            (Ok { libs = [ "core" ]; html_scripts = []; other_config = `Null })
+      in
+      let odoc_file =
+        Fpath.(set_ext "odoc" file |> to_string |> (fun x -> "page-" ^ x) |> v)
+      in
       let odocl_file = Fpath.(set_ext "odocl" odoc_file) in
       let odoc_dir = Fpath.(append odoc_dir dir) in
       match meta with
       | None ->
-        Odoc.html_generate ~output_dir:output_dir_str
-          ~input_file:(Fpath.append odoc_dir odocl_file)
-          ~sidebar:(Fpath.v "sidebar.odoc-sidebar")
-          ~as_json:false ()
-      | Some meta ->
-        let _ =
           Odoc.html_generate ~output_dir:output_dir_str
             ~input_file:(Fpath.append odoc_dir odocl_file)
-            ~as_json:true ()
-        in
-        let json_file =
-          Fpath.(append (v "html") dir / (Fpath.set_ext ".html.json" file |> to_string))
-        in
-        let x = Fpath.rem_ext file |> Fpath.to_string in
+            ~sidebar:(Fpath.v "sidebar.odoc-sidebar")
+            ~as_json:false ()
+      | Some meta ->
+          let _ =
+            Odoc.html_generate ~output_dir:output_dir_str
+              ~input_file:(Fpath.append odoc_dir odocl_file)
+              ~as_json:true ()
+          in
+          let json_file =
+            Fpath.(
+              append (v "html") dir
+              / (Fpath.set_ext ".html.json" file |> to_string))
+          in
+          let x = Fpath.rem_ext file |> Fpath.to_string in
 
-        let ic = open_in (Fpath.to_string json_file) in
-        let yojson = Yojson.Safe.from_channel ic in
-        let _ =
-          let json = as_json_of_yojson yojson in
-          let json = match json with Ok x -> x | Error e -> failwith e in
-          Format.eprintf "We've got the result\n%!";
-          let breadcrumbs = {|<a href="../index.html">Up</a> – notebooks|} in
-          let localtoc =
-            match json.toc with
-            | [] -> None
-            | _ ->
-              let rec aux (toc : toc) =
-              let children = List.map aux toc.children in
-              let children =
-                if List.length children > 0 then
-                  Printf.sprintf "<ul>%s</ul>" (String.concat "" children)
-                else ""
-              in
-              Printf.sprintf "<li><a href=\"%s\">%s</a>%s</li>" toc.href toc.title
-                children
+          let ic = open_in (Fpath.to_string json_file) in
+          let yojson = Yojson.Safe.from_channel ic in
+          let _ =
+            let json = as_json_of_yojson yojson in
+            let json = match json with Ok x -> x | Error e -> failwith e in
+            Format.eprintf "We've got the result\n%!";
+            let breadcrumbs = {|<a href="../index.html">Up</a> – notebooks|} in
+            let localtoc =
+              match json.toc with
+              | [] -> None
+              | _ ->
+                  let rec aux (toc : toc) =
+                    let children = List.map aux toc.children in
+                    let children =
+                      if List.length children > 0 then
+                        Printf.sprintf "<ul>%s</ul>" (String.concat "" children)
+                      else ""
+                    in
+                    Printf.sprintf "<li><a href=\"%s\">%s</a>%s</li>" toc.href
+                      toc.title children
+                  in
+                  let toc = List.map aux json.toc in
+                  Some (Printf.sprintf "<ul>%s</ul>" (String.concat "" toc))
             in
-            let toc = List.map aux json.toc in
-            Some (Printf.sprintf "<ul>%s</ul>" (String.concat "" toc))
+            let post_content = "" in
+            Format.eprintf "Creating html page\n%!";
+            let* html =
+              Html_page.(
+                create
+                  {
+                    title = mld;
+                    header = json.header;
+                    breadcrumbs;
+                    localtoc;
+                    globaltoc;
+                    odoc_assets_path = "/assets";
+                    preamble = json.preamble;
+                    frontend = "default_frontend.js";
+                    content = json.content;
+                    post_content;
+                  })
+            in
+            Format.eprintf "Created\n%!";
+            let oc =
+              open_out
+                Fpath.(append output_dir dir / (x ^ ".html") |> to_string)
+            in
+            Printf.fprintf oc "%s" html;
+            close_out oc;
+            Ok ()
           in
-          let post_content = "" in
-          Format.eprintf "Creating html page\n%!";
-          let* html =
-            Html_page.(
-              create
-                {
-                  title = mld;
-                  header = json.header;
-                  breadcrumbs;
-                  localtoc;
-                  globaltoc;
-                  odoc_assets_path = "/assets";
-                  preamble = json.preamble;
-                  frontend = "default_frontend.js";
-                  content = json.content;
-                  post_content;
-                })
-          in
-          Format.eprintf "Created\n%!";
-          let oc =
-            open_out Fpath.((append output_dir dir) / (x ^ ".html") |> to_string)
-          in
-          Printf.fprintf oc "%s" html;
-          close_out oc;
-          Ok ()
-        in
-        ())
+          ())
     files;
   `Ok ()
 
