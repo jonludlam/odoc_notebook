@@ -12,6 +12,23 @@ bug-reports: "https://github.com/jonludlam/odoc_notebook/issues"
 depends: [
   "ocaml"
   "dune" {>= "3.13"}
+  "ppx_deriving_yojson"
+  "cmdliner"
+  "note"
+  "brr"
+  "js_top_worker"
+  "merlin-js"
+  "opam-format"
+  "findlib"
+  "odoc-parser"
+  "yojson"
+  "eio"
+  "logs"
+  "mustache"
+  "tyxml"
+  "base64"
+  "imagelib"
+  "rpclib"
   "odoc" {with-doc}
 ]
 build: [
