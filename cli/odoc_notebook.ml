@@ -385,7 +385,7 @@ let generate output_dir_str odoc_dir files =
           in
           let json_file =
             Fpath.(
-              append (v "html") dir
+              append output_dir dir
               / (Fpath.set_ext ".html.json" file |> to_string))
           in
           let x = Fpath.rem_ext file |> Fpath.to_string in
