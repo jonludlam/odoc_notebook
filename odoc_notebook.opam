@@ -30,6 +30,7 @@ depends: [
   "imagelib"
   "rpclib"
   "js_of_ocaml-lwt"
+  "eio_main"
   "odoc" {with-doc}
 ]
 build: [
