@@ -34,14 +34,6 @@ let template =
 </head>
 <body class="odoc">
   <nav class="odoc-nav">{{{breadcrumbs}}}</nav>
-  <div class="odoc-search">
-    <div class="search-inner">
-      <input class="search-bar" placeholder=
-      "🔎 Type '/' to search..." />
-      <div class="search-snake"></div>
-      <div class="search-result"></div>
-    </div>
-  </div>
   <header class="odoc-preamble">{{{header}}}{{{preamble}}}</header>
   <div class="odoc-tocs">
     {{#localtoc}}
