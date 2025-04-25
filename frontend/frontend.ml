@@ -2,7 +2,7 @@ open Brr
 open Js_top_worker_rpc
 module W = Js_top_worker_client_fut.W
 
-let _ = Toploop.getvalue
+(* let _ = Toploop.getvalue *)
 let ocaml = Jv.get Jv.global "__CM__mllike" |> Stream.Language.of_jv
 let ocaml = Stream.Language.define ocaml
 let _ = Console.debug [ Jv.of_string "Starting" ]

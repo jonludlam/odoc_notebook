@@ -32,7 +32,7 @@
   js_of_ocaml-lwt
   brr
   note.brr
-  toploop))
+  ))
 
 (library
  (name toploop)
