@@ -30,7 +30,6 @@
   tyxml
   merlin-js.code-mirror
   js_of_ocaml-lwt
-  d3
   brr
   note.brr
   toploop))

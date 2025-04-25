@@ -29,7 +29,9 @@ depends: [
   "base64"
   "imagelib"
   "rpclib"
-  "odoc" {with-doc}
+  "odoc"
+  "eio_main"
+  "odoc-driver"
 ]
 build: [
   ["dune" "subst"] {dev}
