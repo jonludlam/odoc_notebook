@@ -19,7 +19,7 @@ depends: [
   "js_top_worker"
   "merlin-js"
   "opam-format"
-  "findlib"
+  "ocamlfind"
   "odoc-parser"
   "yojson"
   "eio"

@@ -21,7 +21,7 @@
  (name odoc_notebook)
  (synopsis "A tool to create Jupyter-style notebooks from mld pages")
  (description "A tool to create Jupyter-style notebooks from mld pages")
- (depends ocaml dune ppx_deriving_yojson cmdliner note brr js_top_worker merlin-js opam-format findlib odoc-parser yojson eio logs mustache tyxml base64 imagelib rpclib)
+ (depends ocaml dune ppx_deriving_yojson cmdliner note brr js_top_worker merlin-js opam-format ocamlfind odoc-parser yojson eio logs mustache tyxml base64 imagelib rpclib)
  (allow_empty)
  (tags
   (topics "to describe" your project)))
