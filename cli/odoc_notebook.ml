@@ -91,7 +91,11 @@ let opam output_dir_str libraries =
   let libraries =
     match Ocamlfind.deps libraries with
     | Ok l -> Util.StringSet.of_list ("stdlib" :: l)
-    | Error _ -> failwith "Bad libs"
+    | Error (`Msg m) ->
+        Format.eprintf "Failed to find libs: %s\n%!" m;
+        (* Format.eprintf "Bad libs: %s\n%!" m; *)
+        (* failwith ("Bad libs: " ^ m) *)
+        failwith ("Bad libs: " ^ m)
   in
   let verbose = true in
   Eio_main.run @@ fun env ->
