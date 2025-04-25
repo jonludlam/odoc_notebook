@@ -29,9 +29,8 @@ depends: [
   "base64"
   "imagelib"
   "rpclib"
-  "odoc"
-  "eio_main"
-  "odoc-driver"
+  "js_of_ocaml-lwt"
+  "odoc" {with-doc}
 ]
 build: [
   ["dune" "subst"] {dev}
