@@ -1,10 +1,9 @@
 {0 LearnO}
 
-{@meta hidden[
-{ libs: ["astring"] }
-]}
+@published 2025-01-01
+@libs astring
 
-Let's figure out how to use the `note` library.
+Test notebook to check that we can load libraries OK.
 
 {@ocamltop[
 # Astring.String.cuts ~sep:"," "a,b,c";;

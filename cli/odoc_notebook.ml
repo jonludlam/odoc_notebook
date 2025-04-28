@@ -27,7 +27,9 @@ type node = { url : string option; kind : string option; content : string }
 and 'a tree = { node : 'a; children : 'a tree list }
 and sidebar = node tree list [@@deriving yojson]
 
-type as_json = {
+type frontmatter = {
+  other_config : (string * string) list;
+} and as_json = {
   header : string;
   type_ : string; [@key "type"]
   uses_katex : bool;
@@ -36,6 +38,7 @@ type as_json = {
   preamble : string;
   source_anchor : string option;
   content : string;
+  frontmatter : frontmatter; [@default { other_config = [] }]
 }
 [@@deriving yojson]
 
@@ -260,6 +263,7 @@ let generate output_dir_str odoc_dir files =
       Util.StringMap.singleton "stdlib" odoc_dir
   in
   let ( let* ) = Result.bind in
+  let _ = Bos.OS.Dir.create ~path:true Fpath.(output_dir / "assets") |> Result.get_ok in
   let notebook_css =
     open_out Fpath.(output_dir / "assets" / "odoc-notebook.css" |> to_string)
   in

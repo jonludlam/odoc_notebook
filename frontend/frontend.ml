@@ -532,41 +532,15 @@ let init_page requires =
 open Fut.Syntax
 
 let main _requires =
-  let meta_elts =
+  let libs = 
     El.fold_find_by_selector
-      (fun elt y ->
-        let parent_exn elt =
-          match El.parent elt with Some e -> e | None -> failwith "no parent"
-        in
-        let parent = parent_exn elt in
-        let classes_iter =
-          Jv.call (Jv.get (Jv.repr parent) "classList") "values" [||]
-        in
-        let str_classes =
-          Jv.It.fold Jv.to_string (fun x y -> x :: y) classes_iter []
-        in
-        if List.mem "language-meta" str_classes then
-          let meta =
-            let doc =
-              El.txt_text (El.children elt |> List.hd) |> Jstr.to_string
-            in
-            let y = Yojson.Safe.from_string doc in
-            [ y ]
-          in
-          meta
-        else y)
-      (Jstr.v "pre code") []
-    |> List.rev
+      (fun x y ->
+        List.map (fun x -> El.txt_text x |> Jstr.to_string) (El.children x)
+        @ y)
+      (Jstr.v ".at-tags > .libs > p")
+      [] |> String.concat " "
   in
-  let meta =
-    match meta_elts with
-    | [] ->
-        Console.log [ Jv.of_string "No meta elements found" ];
-        None
-    | [ x ] -> ( match meta_of_yojson x with Ok m -> Some m | _ -> None)
-    | _ -> None
-  in
-  let libs = match meta with Some m -> m.libs | None -> [] in
+  let libs = Astring.String.fields ~empty:false libs in
 
   Console.(log [ str "DOM content loaded." ]);
   let* _ev = Ev.next Ev.load (Window.as_target G.window) in
