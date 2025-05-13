@@ -382,6 +382,7 @@ let make_editor rpc id elt =
     | _ -> None
   in
   let output_id = "output-" ^ string_of_int id in
+  let cell_id id = "cell_" ^ string_of_int id in
   let _ =
     Option.iter (El.set_at (Jstr.v "id") (Some (Jstr.v output_id))) output
   in
@@ -413,11 +414,19 @@ let make_editor rpc id elt =
   let hidden = List.mem "hidden" str_classes in
   Console.log [ Jstr.v ("Classes: " ^ String.concat ", " str_classes) ];
   let autorun = List.mem "autorun" str_classes in
+  let rec deps id =
+    match id with
+    | 0 -> []
+    | n -> (cell_id (n-1)) :: deps (n - 1) in
+  let mid = Some (cell_id id) in
+  let mdeps = deps id in
   let merlin_extensions =
     match ty with
     | OCaml | Deferred ->
-        Merlin_codemirror.[ autocomplete rpc; linter rpc; tooltip_on_hover rpc ]
-    | Toplevel -> []
+        Merlin_codemirror.[ autocomplete rpc mid mdeps; linter rpc mid mdeps false; tooltip_on_hover rpc mid mdeps ]
+    | Toplevel -> 
+        Merlin_codemirror.[ autocomplete rpc mid mdeps; linter rpc mid mdeps true; tooltip_on_hover rpc mid mdeps ]
+
     | Other -> []
   in
   let theme =

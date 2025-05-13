@@ -5,4 +5,4 @@
   (pps ppx_deriving_yojson))
  (modes byte)
  (link_flags (-linkall))
- (libraries cmdliner odoc_notebook_lib rpclib.json))
+ (libraries cmdliner odoc_notebook_lib rpclib.json odoc.odoc))

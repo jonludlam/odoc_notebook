@@ -48,6 +48,7 @@
   stdlib__Condition.cmi
   stdlib__Digest.cmi
   stdlib__Domain.cmi
+  stdlib__Dynarray.cmi
   stdlib__Effect.cmi
   stdlib__Either.cmi
   stdlib__Ephemeron.cmi

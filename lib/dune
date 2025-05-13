@@ -20,4 +20,5 @@
   tyxml
   base64
   imagelib
-  rpclib.core))
+  rpclib.core
+  odoc.loader))

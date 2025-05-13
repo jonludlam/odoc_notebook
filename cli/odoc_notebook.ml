@@ -281,21 +281,25 @@ let generate output_dir_str odoc_dir files =
     files;
   List.iter
     (fun mld ->
-      let meta = Odoc_notebook_lib.Mld.meta_of_mld mld in
       let dir, file = Fpath.split_base (Fpath.v mld) in
-      let libs_list =
-        match meta with
-        | None -> [ "stdlib" ]
-        | Some l -> "stdlib" :: (Result.get_ok l).libs
+      let x = Fpath.set_ext ".odoc" file in
+      let odoc_file = "page-" ^ Fpath.to_string x in
+      let odoc_path = Fpath.(append odoc_dir dir) in
+      let odoc_unit = Odoc_odoc.Odoc_file.load odoc_path in
+      let libs_list = match odoc_unit with
+        | Ok {content=Page_content p; _} ->
+          let frontmatter = p.frontmatter in
+          let libs = try List.assoc "libs" frontmatter.other_config |> Astring.String.fields ~empty:false with Not_found -> [] in
+          libs
+        | Ok _ -> []
+        | Error (`Msg m) -> []
       in
+      let libs_list = "stdlib" :: libs_list in
       let libs =
         List.filter_map
           (fun lib_name -> try Some (lib_name, Util.StringMap.find lib_name lib_map) with _ -> None)
           libs_list
       in
-      let x = Fpath.set_ext ".odoc" file in
-      let odoc_file = "page-" ^ Fpath.to_string x in
-      let odoc_path = Fpath.(append odoc_dir dir) in
       Odoc.link
         ~input_file:Fpath.(odoc_path / odoc_file)
         ~libs
@@ -384,24 +388,18 @@ let generate output_dir_str odoc_dir files =
   List.iter
     (fun mld ->
       let dir, file = Fpath.split_base (Fpath.v mld) in
-      let meta =
-        (* if Fpath.has_ext "mld" file then Odoc_notebook_lib.Mld.meta_of_mld mld
-        else
-          Some *)
-            (Some { Odoc_notebook_lib.Mld.libs = [ "core" ]; html_scripts = []; other_config = `Null })
-      in
       let odoc_file =
         Fpath.(set_ext "odoc" file |> to_string |> (fun x -> "page-" ^ x) |> v)
       in
       let odocl_file = Fpath.(set_ext "odocl" odoc_file) in
       let odoc_dir = Fpath.(append odoc_dir dir) in
-      match meta with
-      | None ->
+      match Fpath.(rem_ext ~multi:false file |> to_string) with
+      | "index" ->
           Odoc.html_generate ~output_dir:output_dir_str
             ~input_file:(Fpath.append odoc_dir odocl_file)
             ~sidebar:(Fpath.v "sidebar.odoc-sidebar")
             ~as_json:false ()
-      | Some meta ->
+      | _ ->
           let _ =
             Odoc.html_generate ~output_dir:output_dir_str
               ~input_file:(Fpath.append odoc_dir odocl_file)
@@ -420,7 +418,7 @@ let generate output_dir_str odoc_dir files =
             let json = as_json_of_yojson yojson in
             let json = match json with Ok x -> x | Error e -> failwith e in
             (* Format.eprintf "We've got the result - doing details\n%!"; *)
-            let breadcrumbs = {|<a href="../index.html">Up</a> – notebooks|} in
+            let breadcrumbs = {|<a href="../index.html">Up</a> - notebooks|} in
             let localtoc =
               match json.toc with
               | [] -> None

@@ -1,5 +1,7 @@
 {0 LearnO}
 
+@libs brr note note.brr
+
 {@meta[
 { libs: ["brr", "note", "note.brr"]
 }

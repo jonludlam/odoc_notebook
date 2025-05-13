@@ -1,0 +1,6 @@
+{0 No libs, should error}
+
+{@ocamltop[
+# Astring.String.fields "this is a test";;
+]}
+

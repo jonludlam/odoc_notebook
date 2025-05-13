@@ -91,11 +91,11 @@ let rec print_block fmt (block : Blocks.Block.code_block) =
   | _ -> failwith "print_block: output without metadata"
 
 let test file =
-  let mld = Mld.parse_mld file in
+  let mld = Mld.parse_mld file |> Result.get_ok in
   let blocks = Blocks.parse_mld mld |> Result.get_ok in
-  let meta = Mld.meta_of_parsed mld.parsed in
+  let meta = Mld.frontmatter mld in
   let libs =
-    match meta with Some meta -> (Result.get_ok meta).libs | None -> []
+    try List.assoc "libs" meta.other_config |> Astring.String.fields ~empty:false with Not_found -> []
   in
   Toplevel.init ~verbose:false ~silent:true ~verbose_findlib:false
     ~directives:[] ~packages:libs ~predicates:[] ();

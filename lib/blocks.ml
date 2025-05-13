@@ -71,7 +71,7 @@ let rec extract_code_block_info acc raw ~parsed ~ast =
           loc_ghost = false;
         }
     in
-    fun location { O.Ast.meta; delimiter; content = { O.Loc.value; _ }; output }
+    fun location { Odoc_model.Comment.meta; delimiter; content = { O.Loc.value; _ }; output }
       ->
       let metadata =
         Option.map
@@ -87,19 +87,19 @@ let rec extract_code_block_info acc raw ~parsed ~ast =
       let output =
         Option.map output_fn
           (output
-            :> Odoc_parser.Ast.block_element Odoc_parser.Ast.with_location list
+            :> Odoc_model.Comment.block_element Odoc_parser.Ast.with_location list
                option)
       in
       let output = Option.value ~default:[] output in
       { metadata; content_txt; location; code_block; output; changed = false }
   (* Fold over the results from odoc-parser, recurse where necessary
      and extract the code block metadata *)
-  and fold_fn acc (elt : O.Ast.block_element O.Loc.with_location) =
+  and fold_fn acc (elt : Odoc_model.Comment.block_element O.Loc.with_location) =
     match elt with
     | { O.Loc.value = `Code_block c; location } ->
         handle_code_block location c :: acc
-    | { O.Loc.value = `List (_, _, lists); _ } ->
-        List.fold_left (List.fold_left fold_fn) acc (lists :> O.Ast.t list)
+    | { O.Loc.value = `List (_, lists); _ } ->
+        List.fold_left (List.fold_left fold_fn) acc (lists :> Odoc_model.Comment.elements list)
     | { O.Loc.value = `Tag tag; _ } -> (
         match tag with
         | `Deprecated blocks
@@ -108,7 +108,7 @@ let rec extract_code_block_info acc raw ~parsed ~ast =
         | `Return blocks
         | `See (_, _, blocks)
         | `Before (_, blocks) ->
-            List.fold_left fold_fn acc (blocks :> O.Ast.t)
+            List.fold_left fold_fn acc (blocks :> Odoc_model.Comment.elements)
         | _ -> acc)
     | _ -> acc
   in
@@ -148,6 +148,6 @@ and parse_chunk raw parsed ast =
 
 let parse_mld : Mld.t -> (Block.t list, [ `Msg of string ]) Result.t =
  fun mld ->
-  let { Mld.raw; parsed } = mld in
-  let ast = Odoc_parser.ast parsed in
-  Ok (parse_chunk raw parsed ast)
+  let { Mld.raw; parsed;  } = mld in
+  let ast = Mld.model_ast mld in
+  Ok (parse_chunk raw parsed ast.elements)

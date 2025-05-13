@@ -1,0 +1,8 @@
+{0 Test 2 - libraries}
+
+@libs astring
+
+{@ocamltop[
+# Astring.String.fields "this is a test";;
+]}
+
