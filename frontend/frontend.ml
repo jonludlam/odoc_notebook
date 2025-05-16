@@ -407,7 +407,7 @@ let make_editor rpc id elt =
   let mime_only = List.mem "mime-only" str_classes in
   (* let is_deferred = List.mem "deferred-js" str_classes in *)
   let ty =
-    if List.mem "language-ocaml" str_classes then Toplevel
+    if List.mem "language-ocaml" str_classes then OCaml
     else if List.mem "language-ocamltop" str_classes then Toplevel
     else Other
   in
@@ -423,9 +423,9 @@ let make_editor rpc id elt =
   let merlin_extensions =
     match ty with
     | OCaml | Deferred ->
-        Merlin_codemirror.[ autocomplete rpc mid mdeps; linter rpc mid mdeps false; tooltip_on_hover rpc mid mdeps ]
+        Merlin_codemirror.[ autocomplete rpc mid mdeps false; linter rpc mid mdeps false; tooltip_on_hover rpc mid mdeps false ]
     | Toplevel -> 
-        Merlin_codemirror.[ autocomplete rpc mid mdeps; linter rpc mid mdeps true; tooltip_on_hover rpc mid mdeps ]
+        Merlin_codemirror.[ autocomplete rpc mid mdeps true; linter rpc mid mdeps true; tooltip_on_hover rpc mid mdeps true ]
 
     | Other -> []
   in
