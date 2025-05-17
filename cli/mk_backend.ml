@@ -44,7 +44,7 @@ let mk switch libs dir =
           "+dynlink.js";
           "+toplevel.js";
           "+bigstringaf/runtime.js";
-          "+merlin-js.worker/stubs.js";
+          "+js_top_worker/stubs.js";
         ])
       cmd
   in
