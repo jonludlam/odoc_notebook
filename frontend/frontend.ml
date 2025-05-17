@@ -13,16 +13,21 @@ type meta = {
 }
 [@@deriving yojson]
 
-let initialise requires s callback =
+let initialise switch requires s callback =
   let open Fut.Result_syntax in
   let rpc = Js_top_worker_client_fut.start s 100000 callback in
+  let findlib_index =
+    match switch with
+    | None -> "/_opam/findlib_index"
+    | Some s -> "/_opam/" ^ s ^ "/findlib_index"
+  in
   let* () =
     W.init rpc
       {
         Toplevel_api_gen.path = "/static/cmis";
         cmas = [];
         cmis = { static_cmis = []; dynamic_cmis = [] };
-        findlib_index = "/_opam/findlib_index";
+        findlib_index;
         findlib_requires = requires;
         stdlib_dcs = "/_opam/ocaml/dynamic_cmis.json";
       }
@@ -496,10 +501,10 @@ let nav_setup () =
       ())
     nav_elts
 
-let init_page requires =
+let init_page switch requires =
   let open Fut.Result_syntax in
   let* rpc =
-    initialise requires "/assets/worker.js" (fun _ ->
+    initialise switch requires "/assets/worker.js" (fun _ ->
         Console.(log [ str "Timeout" ]))
   in
   Console.log [ Jv.of_string "Initialised" ];
@@ -549,12 +554,24 @@ let main _requires =
       (Jstr.v ".at-tags > .libs > p")
       [] |> String.concat " "
   in
+  let switch = 
+    El.fold_find_by_selector
+      (fun x y ->
+        List.map (fun x -> El.txt_text x |> Jstr.to_string) (El.children x)
+        @ y)
+      (Jstr.v ".at-tags > .switch > p")
+      [] 
+  in
+  let switch = match switch with
+  | [] -> None
+  | x :: _ -> Some x
+  in
   let libs = Astring.String.fields ~empty:false libs in
 
   Console.(log [ str "DOM content loaded." ]);
   let* _ev = Ev.next Ev.load (Window.as_target G.window) in
   Console.(log [ str "Resources loaded." ]);
-  ignore (init_page libs);
+  ignore (init_page switch libs);
 
   Fut.return ()
 
