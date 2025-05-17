@@ -243,7 +243,7 @@ let opam output_dir_str switch libraries =
     init_cmis;
   Format.eprintf "Number of cmis: %d\n%!" (List.length init_cmis);
 
-  let () = Mk_backend.mk libraries assetsdir in
+  let () = Mk_backend.mk switch libraries assetsdir in
 
   `Ok ()
 

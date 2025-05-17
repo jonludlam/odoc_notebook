@@ -1,12 +1,19 @@
 (* To make a toplevel backend.js *)
 
-let mk libs dir =
+let mk switch libs dir =
   let txt = {|let _ = Js_top_worker_web.Worker.run ()|} in
   let file = Fpath.(dir / "worker.ml") in
   Util.write_file file [ txt ];
+  let ocamlfind_cmd, js_of_ocaml_cmd =
+    match switch with
+    | None -> Bos.Cmd.(v "ocamlfind"), Bos.Cmd.(v "js_of_ocaml")
+    | Some s ->
+      Bos.Cmd.(v "opam" % "exec" % "--switch" % s % "--" % "ocamlfind"),
+      Bos.Cmd.(v "opam" % "exec" % "--switch" % s % "--" % "js_of_ocaml")
+  in
   let cmd =
     Bos.Cmd.(
-      v "ocamlfind" % "ocamlc" % "-package" % "js_of_ocaml-ppx.as-lib"
+      ocamlfind_cmd % "ocamlc" % "-package" % "js_of_ocaml-ppx.as-lib"
       % "-package" % "js_top_worker-web")
   in
   let cmd = Bos.Cmd.(cmd % "-linkpkg" % "-linkall" % Fpath.to_string file) in
@@ -14,8 +21,8 @@ let mk libs dir =
   let _ = Util.lines_of_process cmd in
   let cmd =
     Bos.Cmd.(
-      v "ocamlfind" % "query" % "-format" % "%+(jsoo_runtime)" % "-r"
-      % "odoc_notebook.frontend")
+      ocamlfind_cmd % "query" % "-format" % "%+(jsoo_runtime)" % "-r"
+      % "js_top_worker-web")
   in
   let cmd = Util.StringSet.fold (fun lib cmd -> Bos.Cmd.(cmd % lib)) libs cmd in
   let js_files =
@@ -26,7 +33,7 @@ let mk libs dir =
   in
   let cmd =
     Bos.Cmd.(
-      v "js_of_ocaml" % "--toplevel" % "--no-cmis" % "--linkall" % "--pretty"
+      js_of_ocaml_cmd % "--toplevel" % "--no-cmis" % "--linkall" % "--pretty"
       % "--effects=cps")
   in
   let cmd =
