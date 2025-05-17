@@ -211,7 +211,7 @@ let opam output_dir_str switch libraries =
                   % Fpath.to_string archive % "-o" % Fpath.to_string output)
             | Some s ->
                 Bos.Cmd.(
-                  v "opam" % "exec" % "--switch" % s % "js_of_ocaml"
+                  v "opam" % "exec" % "--switch" % s % "--" % "js_of_ocaml"
                   % "compile" % "--effects=cps" % Fpath.to_string archive
                   % "-o" % Fpath.to_string output)
           in
