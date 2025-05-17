@@ -90,7 +90,8 @@ let generate_page parent_id odoc_dir mld =
 let generate_page_md parent_id odoc_dir mld =
   Odoc.compile_md ~output_dir:odoc_dir ~input_file:(Fpath.v mld) ~parent_id
 
-let opam output_dir_str libraries =
+let opam output_dir_str switch libraries =
+  Opam.switch := switch;
   let libraries =
     match Ocamlfind.deps libraries with
     | Ok l -> Util.StringSet.of_list ("stdlib" :: l)
@@ -471,12 +472,12 @@ let generate output_dir_str odoc_dir files =
     files;
   `Ok ()
 
-let test files =
+(* let test files =
   match Odoc_notebook_lib.Test.run files with
   | Ok () -> `Ok ()
   | Error (`Msg m) ->
       Format.eprintf "Error: %s\n%!" m;
-      `Error (false, m)
+      `Error (false, m) *)
 
 let fpath_arg =
   let print ppf v = Fpath.pp ppf v in
@@ -496,10 +497,10 @@ let generate_cmd =
   let info = Cmd.info "generate" ~doc in
   Cmd.v info Term.(ret (const generate $ output_dir $ odoc_dir $ files))
 
-let test_cmd =
+(* let test_cmd =
   let files = Arg.(value & pos_all non_dir_file [] & info [] ~docv:"FILE") in
   let info = Cmd.info "test" ~doc:"Test an mld file" in
-  Cmd.v info Term.(ret (const test $ files))
+  Cmd.v info Term.(ret (const test $ files)) *)
 
 let opam_cmd =
   let libraries = Arg.(value & pos_all string [] & info [] ~docv:"LIB") in
@@ -507,13 +508,17 @@ let opam_cmd =
     let doc = "Output directory in which to put all outputs" in
     Arg.(value & opt string "html" & info [ "o"; "output" ] ~doc)
   in
+  let switch =
+    let doc = "Opam switch to use" in
+    Arg.(value & opt (some string) None & info [ "switch" ] ~doc)
+  in
   let info = Cmd.info "opam" ~doc:"Generate opam files" in
-  Cmd.v info Term.(ret (const opam $ output_dir $ libraries))
+  Cmd.v info Term.(ret (const opam $ output_dir $ switch $ libraries))
 
 let main_cmd =
   let doc = "An odoc notebook tool" in
   let info = Cmd.info "odoc-notebook" ~version:"%%VERSION%%" ~doc in
   let default = Term.(ret (const (`Help (`Pager, None)))) in
-  Cmd.group info ~default [ generate_cmd; test_cmd; opam_cmd ]
+  Cmd.group info ~default [ generate_cmd; opam_cmd ]
 
 let () = exit (Cmd.eval main_cmd)

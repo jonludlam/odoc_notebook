@@ -1,4 +1,4 @@
-  $ odoc_notebook test test_page.mld 2> /dev/null
+  $ odoc_notebook_test test_page.mld 2> /dev/null
   {0 Test of test}
   
   {@ocamltop[
@@ -7,7 +7,7 @@
     - : unit = ()
   ]}
   
-  $ odoc_notebook test test_page2.mld 2> /dev/null
+  $ odoc_notebook_test test_page2.mld 2> /dev/null
   {0 Test 2 - libraries}
   
   @libs astring
@@ -18,7 +18,7 @@
   ]}
   
  
-  $ odoc_notebook test test_page3.mld 2> /dev/null
+  $ odoc_notebook_test test_page3.mld 2> /dev/null
   {0 No libs, should error}
   
   {@ocamltop[

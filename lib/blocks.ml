@@ -148,6 +148,6 @@ and parse_chunk raw parsed ast =
 
 let parse_mld : Mld.t -> (Block.t list, [ `Msg of string ]) Result.t =
  fun mld ->
-  let { Mld.raw; parsed;  } = mld in
+  let { Mld.raw; parsed; _  } = mld in
   let ast = Mld.model_ast mld in
   Ok (parse_chunk raw parsed ast.elements)
