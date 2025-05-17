@@ -13,8 +13,11 @@ type meta = {
 }
 [@@deriving yojson]
 
-let initialise switch requires s callback =
+let initialise switch requires callback =
   let open Fut.Result_syntax in
+  let s = match switch with
+    | None -> "/assets/worker.js"
+    | Some s -> "/"^s^"/assets/worker.js" in
   let rpc = Js_top_worker_client_fut.start s 100000 callback in
   let findlib_index =
     match switch with
@@ -504,7 +507,7 @@ let nav_setup () =
 let init_page switch requires =
   let open Fut.Result_syntax in
   let* rpc =
-    initialise switch requires "/assets/worker.js" (fun _ ->
+    initialise switch requires (fun _ ->
         Console.(log [ str "Timeout" ]))
   in
   Console.log [ Jv.of_string "Initialised" ];
