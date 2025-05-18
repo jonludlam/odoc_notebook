@@ -34,7 +34,7 @@ let mk switch libs dir =
   let cmd =
     Bos.Cmd.(
       js_of_ocaml_cmd % "--toplevel" % "--no-cmis" % "--linkall" % "--pretty"
-      % "--effects=cps")
+      )
   in
   let cmd =
     List.fold_right
@@ -45,6 +45,7 @@ let mk switch libs dir =
           "+toplevel.js";
           "+bigstringaf/runtime.js";
           "+js_top_worker/stubs.js";
+          "+capsule.js";
         ])
       cmd
   in
