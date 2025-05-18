@@ -56,5 +56,6 @@ let mk switch libs dir =
       % "-o"
       % Fpath.(dir / "worker.js" |> to_string))
   in
+  Logs.info (fun m -> m "cmd: %s" (Bos.Cmd.to_string cmd));
   let _ = Util.lines_of_process cmd in
   ()
