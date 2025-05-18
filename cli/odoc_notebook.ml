@@ -104,7 +104,7 @@ let opam output_dir_str switch libraries =
   let verbose = true in
   Eio_main.run @@ fun env ->
   Eio.Switch.run @@ fun sw ->
-  if verbose then Logs.set_level (Some Logs.Info) else Logs.set_level None;
+  if verbose then Logs.set_level (Some Logs.Debug) else Logs.set_level None;
   (* Logs.set_reporter (Logs_fmt.reporter ()); *)
   let () = Worker_pool.start_workers env sw 16 in
   Logs.debug (fun m ->
