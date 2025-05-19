@@ -45,7 +45,6 @@ let mk switch libs dir =
           "+toplevel.js";
           "+bigstringaf/runtime.js";
           "+js_top_worker/stubs.js";
-          "+capsule.js";
         ])
       cmd
   in
