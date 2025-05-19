@@ -219,12 +219,12 @@ let opam output_dir_str switch libraries =
             match switch with
             | None ->
                 Bos.Cmd.(
-                  v "js_of_ocaml" % "compile" % "--effects=cps"
+                  v "js_of_ocaml" % "compile"
                   % Fpath.to_string archive % "-o" % Fpath.to_string output)
             | Some s ->
                 Bos.Cmd.(
                   v "opam" % "exec" % "--switch" % s % "--" % "js_of_ocaml"
-                  % "compile" % "--effects=cps" % Fpath.to_string archive
+                  % "compile" % Fpath.to_string archive
                   % "-o" % Fpath.to_string output)
           in
           let _ = Util.lines_of_process cmd in
