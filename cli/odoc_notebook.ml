@@ -105,7 +105,7 @@ let opam output_dir_str switch libraries =
   Eio_main.run @@ fun env ->
   Eio.Switch.run @@ fun sw ->
   if verbose then Logs.set_level (Some Logs.Debug) else Logs.set_level None;
-  (* Logs.set_reporter (Logs_fmt.reporter ()); *)
+  Logs.set_reporter (Logs_fmt.reporter ());
   let () = Worker_pool.start_workers env sw 16 in
   Logs.debug (fun m ->
       m "Libraries: %a"
@@ -142,8 +142,13 @@ let opam output_dir_str switch libraries =
       [] cmi_dirs
   in
   let ( let* ) = Result.bind in
-  let opamdir = Fpath.(output_dir / "_opam") in
-  let assetsdir = Fpath.(output_dir / "assets") in
+  
+  let opamdir, assetsdir =
+    match switch with
+    | None -> Fpath.(output_dir / "_opam", output_dir / "assets")
+    | Some s ->
+      Fpath.(output_dir / s / "_opam", output_dir / s / "assets")
+  in
   let _ =
     let* _ = Bos.OS.Dir.create output_dir in
     let* _ = Bos.OS.Dir.create opamdir in
@@ -190,7 +195,11 @@ let opam output_dir_str switch libraries =
         List.iter
           (fun (meta_file, d) ->
             let file = Fpath.filename meta_file in
-            Printf.fprintf oc "/_opam/%s\n" Fpath.(d / file |> to_string))
+            let path = match switch with
+              | None -> Fpath.(v "/_opam" // d / file)
+              | Some s -> Fpath.(v "/" / s / "_opam" // d / file)
+            in
+            Printf.fprintf oc "%s\n" (Fpath.to_string path))
           meta_rels);
 
     Util.StringSet.iter

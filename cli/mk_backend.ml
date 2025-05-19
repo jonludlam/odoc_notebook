@@ -17,7 +17,7 @@ let mk switch libs dir =
       % "-package" % "js_top_worker-web")
   in
   let cmd = Bos.Cmd.(cmd % "-linkpkg" % "-linkall" % Fpath.to_string file) in
-  let cmd = Bos.Cmd.(cmd % "-o" % Fpath.(dir / "worker.bc" |> to_string)) in
+  let cmd = Bos.Cmd.(cmd % "-g" % "-o" % Fpath.(dir / "worker.bc" |> to_string)) in
   let _ = Util.lines_of_process cmd in
   let cmd =
     Bos.Cmd.(

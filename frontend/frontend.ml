@@ -22,8 +22,12 @@ let initialise switch requires callback =
   let findlib_index =
     match switch with
     | None -> "/_opam/findlib_index"
-    | Some s -> "/_opam/" ^ s ^ "/findlib_index"
+    | Some s -> "/" ^ s ^ "/_opam/findlib_index"
   in
+  let stdlib_dcs =
+    match switch with
+    | None -> "/_opam/ocaml/dynamic_cmis.json"
+    | Some s -> "/" ^ s ^ "/_opam/ocaml/dynamic_cmis.json" in
   let* () =
     W.init rpc
       {
@@ -32,7 +36,7 @@ let initialise switch requires callback =
         cmis = { static_cmis = []; dynamic_cmis = [] };
         findlib_index;
         findlib_requires = requires;
-        stdlib_dcs = "/_opam/ocaml/dynamic_cmis.json";
+        stdlib_dcs;
       }
   in
   Fut.return (Ok rpc)
