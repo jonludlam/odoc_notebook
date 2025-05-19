@@ -48,7 +48,10 @@ let cmi_files dir =
       if Fpath.has_ext ".cmi" path then Fpath.filename path :: acc else acc)
     [] dir
 
-let gen_cmis cmis =
+let gen_cmis switch cmis =
+  let base_path = match switch with
+    | None -> Fpath.v "/_opam"
+    | Some s -> Fpath.(v "/" / s / "_opam") in
   let gen_one (dir, cmis) =
     let all_cmis =
       List.map (fun s -> String.sub s 0 (String.length s - 4)) cmis
@@ -70,7 +73,7 @@ let gen_cmis cmis =
     let dcs =
       {
         Js_top_worker_rpc.Toplevel_api_gen.dcs_url =
-          Fpath.(v "/_opam" // d |> to_string);
+          Fpath.(base_path // d |> to_string);
         dcs_toplevel_modules = List.map String.capitalize_ascii non_hidden;
         dcs_file_prefixes = prefixes;
       }
@@ -233,7 +236,7 @@ let opam output_dir_str switch libraries =
     (* Format.eprintf "@[<hov 2>dir: %a [%a]@]\n%!" Fpath.pp dir (Fmt.list ~sep:Fmt.sp Fmt.string) files) cmis; *)
     Ok ()
   in
-  let init_cmis = gen_cmis cmis in
+  let init_cmis = gen_cmis switch cmis in
   List.iter
     (fun (dir, dcs) ->
       let findlib_dir = Ocamlfind.findlib_dir () |> Fpath.v in
