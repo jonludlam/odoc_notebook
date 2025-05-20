@@ -1,6 +1,7 @@
 (vendored_dirs vendor)
 
-(documentation)
+(documentation
+ (package odoc_notebook))
 
 ; (rule
 ;  (with-stdout-to

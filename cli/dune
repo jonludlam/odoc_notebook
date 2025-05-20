@@ -1,6 +1,7 @@
 (executable
  (name odoc_notebook)
  (public_name odoc_notebook)
+ (package odoc_notebook)
  (preprocess
   (pps ppx_deriving_yojson))
  (modules cmd_outputs html_page mk_backend mk_frontend notebook_css ocamlfind odoc_notebook odoc opam run util worker_pool)
@@ -10,6 +11,7 @@
 (executable
  (name odoc_notebook_test)
  (public_name odoc_notebook_test)
+ (package odoc_notebook_test)
  (modes byte)
  (modules odoc_notebook_test)
  (link_flags (-linkall))

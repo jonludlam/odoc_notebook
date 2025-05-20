@@ -36,6 +36,9 @@ pre.stdout {
   display: none;
 }
 
+.at-tags > .switch {
+  display: none;
+}
 
 .at-tags > .published > .at-tag {
   display : none;

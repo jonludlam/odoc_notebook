@@ -26,4 +26,11 @@
  (tags
   (topics "to describe" your project)))
 
+(package
+ (name odoc_notebook_test)
+ (synopsis "A tool for testing odoc_notebook pages")
+ (description "A tool for testing odoc_notebook pages")
+ (depends ocaml dune cmdliner js_top_worker js_top_worker-client)
+ (allow_empty))
+
 ; See the complete stanza docs at https://dune.readthedocs.io/en/stable/dune-files.html#dune-project
