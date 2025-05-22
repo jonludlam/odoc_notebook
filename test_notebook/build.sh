@@ -1,5 +1,5 @@
 #!/bin/bash
 
-odoc_notebook opam astring
-odoc_notebook generate index.mld --odoc-dir _tmp/_odoc
+dune exec -- odoc_notebook opam astring base
+dune exec -- odoc_notebook generate guided_tour.md --odoc-dir _tmp/_odoc
 

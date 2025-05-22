@@ -32,7 +32,7 @@ depends: [
   "js_of_ocaml-lwt"
   "eio_main"
   "js_top_worker-web"
-  "odoc" {with-doc}
+  "odoc"
 ]
 build: [
   ["dune" "subst"] {dev}

@@ -1,8 +1,6 @@
 # A Guided Tour
 
-```meta hidden
-{ libs:["core"] }
-```
+<ul class="at-tags"><li class="libs"><span class="at-tag">libs</span> <p>base</p></li></ul>
 
 This chapter gives an overview of OCaml by walking through a series of small
 examples that cover most of the major features of the language. This should
