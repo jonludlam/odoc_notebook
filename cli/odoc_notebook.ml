@@ -504,7 +504,7 @@ let fpath_arg =
 
 let odoc_dir =
   let doc = "Odoc directory from odoc_driver" in
-  Arg.(required & opt (some fpath_arg) None & info [ "odoc-dir" ] ~doc)
+  Arg.(required & opt (some fpath_arg) (Some (Fpath.v "_odoc")) & info [ "odoc-dir" ] ~doc)
 
 let generate_cmd =
   let output_dir =

@@ -13,7 +13,7 @@ type meta = {
 }
 [@@deriving yojson]
 
-let initialise switch requires callback =
+let initialise switch requires execute callback =
   let open Fut.Result_syntax in
   let s = match switch with
     | None -> "/assets/worker.js"
@@ -31,12 +31,10 @@ let initialise switch requires callback =
   let* () =
     W.init rpc
       {
-        Toplevel_api_gen.path = "/static/cmis";
-        cmas = [];
-        cmis = { static_cmis = []; dynamic_cmis = [] };
         findlib_index;
         findlib_requires = requires;
         stdlib_dcs;
+        execute;
       }
   in
   Fut.return (Ok rpc)
@@ -508,10 +506,10 @@ let nav_setup () =
       ())
     nav_elts
 
-let init_page switch requires =
+let init_page switch requires execute =
   let open Fut.Result_syntax in
   let* rpc =
-    initialise switch requires (fun _ ->
+    initialise switch requires execute (fun _ ->
         Console.(log [ str "Timeout" ]))
   in
   Console.log [ Jv.of_string "Initialised" ];
@@ -574,11 +572,19 @@ let main _requires =
   | x :: _ -> Some x
   in
   let libs = Astring.String.fields ~empty:false libs in
-
+  let merlin_only = 
+    El.fold_find_by_selector
+      (fun x y ->
+        List.map (fun x -> El.txt_text x |> Jstr.to_string) (El.children x)
+        @ y)
+      (Jstr.v ".at-tags > .merlin_only > p")
+      [] 
+  in
+  let execute = match merlin_only with [] -> true | _ -> false in
   Console.(log [ str "DOM content loaded." ]);
   let* _ev = Ev.next Ev.load (Window.as_target G.window) in
   Console.(log [ str "Resources loaded." ]);
-  ignore (init_page switch libs);
+  ignore (init_page switch libs execute);
 
   Fut.return ()
 

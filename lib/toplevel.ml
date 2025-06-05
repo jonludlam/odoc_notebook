@@ -69,7 +69,7 @@ module UnixWorker = struct
   let get_stdlib_dcs _ = []
   let findlib_init _ = ()
 
-  let require () packages =
+  let require _ () packages =
     try
       let eff_packages =
         Findlib.package_deep_ancestors !Topfind.predicates packages
@@ -111,7 +111,6 @@ type t = unit
 let init ~verbose:_ ~silent:_ ~verbose_findlib:_ ~directives:_ ~packages
     ~predicates:_ () =
   let open IdlM.ErrM in
-  let opam_path = Sys.getenv "OPAM_SWITCH_PREFIX" in
   init_findlib ();
   let deps =
     match deps packages with
@@ -120,29 +119,13 @@ let init ~verbose:_ ~silent:_ ~verbose_findlib:_ ~directives:_ ~packages
         Format.eprintf "Error getting dependencies: %s\n%!" m;
         failwith "error"
   in
-  let dirs = List.map get_dir deps in
-  let urls =
-    List.filter_map
-      (function
-        | Ok x -> Some ("file://" ^ Fpath.to_string x) | Error _ -> None)
-      dirs
-  in
-  let dynamic_cmis =
-    List.map
-      (fun url ->
-        Toplevel_api_gen.
-          { dcs_url = url; dcs_file_prefixes = []; dcs_toplevel_modules = [] })
-      urls
-  in
   let result =
     U.init
       {
-        Toplevel_api_gen.path = Printf.sprintf "%s/lib/ocaml" opam_path;
-        cmas = [];
-        cmis = { static_cmis = []; dynamic_cmis };
         findlib_index = "";
         findlib_requires = deps;
         stdlib_dcs = "";
+        execute = true;
       }
     >>= fun () ->
     U.setup () >>= fun _ -> return ()
