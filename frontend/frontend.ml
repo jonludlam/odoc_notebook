@@ -13,27 +13,18 @@ type meta = {
 }
 [@@deriving yojson]
 
-let initialise switch requires execute callback =
+let initialise opamurl switch requires execute callback =
   let open Fut.Result_syntax in
-  let s = match switch with
-    | None -> "/assets/worker.js"
-    | Some s -> "/"^s^"/assets/worker.js" in
+  let s =
+    match opamurl with
+    | None -> "/"^switch^"/worker.js"
+    | Some url -> url ^ "/worker.js" in
   let rpc = Js_top_worker_client_fut.start s 100000 callback in
-  let findlib_index =
-    match switch with
-    | None -> "/_opam/findlib_index"
-    | Some s -> "/" ^ s ^ "/_opam/findlib_index"
-  in
-  let stdlib_dcs =
-    match switch with
-    | None -> "/_opam/ocaml/dynamic_cmis.json"
-    | Some s -> "/" ^ s ^ "/_opam/ocaml/dynamic_cmis.json" in
   let* () =
     W.init rpc
       {
-        findlib_index;
         findlib_requires = requires;
-        stdlib_dcs;
+        stdlib_dcs=None;
         execute;
       }
   in
@@ -506,10 +497,10 @@ let nav_setup () =
       ())
     nav_elts
 
-let init_page switch requires execute =
+let init_page opamurl switch requires execute =
   let open Fut.Result_syntax in
   let* rpc =
-    initialise switch requires execute (fun _ ->
+    initialise opamurl switch requires execute (fun _ ->
         Console.(log [ str "Timeout" ]))
   in
   Console.log [ Jv.of_string "Initialised" ];
@@ -568,8 +559,8 @@ let main _requires =
       [] 
   in
   let switch = match switch with
-  | [] -> None
-  | x :: _ -> Some x
+  | [] -> "_opam"
+  | x :: _ -> x
   in
   let libs = Astring.String.fields ~empty:false libs in
   let merlin_only = 
@@ -577,14 +568,26 @@ let main _requires =
       (fun x y ->
         List.map (fun x -> El.txt_text x |> Jstr.to_string) (El.children x)
         @ y)
-      (Jstr.v ".at-tags > .merlin_only > p")
+      (Jstr.v ".at-tags > .merlinonly")
       [] 
   in
+  let opamurl = 
+    El.fold_find_by_selector
+      (fun x y ->
+        List.map (fun x -> El.txt_text x |> Jstr.to_string) (El.children x)
+        @ y)
+      (Jstr.v ".at-tags > .opamurl")
+      []
+  in
+  let opamurl = match opamurl with
+  | [] -> None
+  | x :: _ -> Some x in
   let execute = match merlin_only with [] -> true | _ -> false in
+  Console.(log [ str ("Execute: " ^ string_of_bool execute) ]);
   Console.(log [ str "DOM content loaded." ]);
   let* _ev = Ev.next Ev.load (Window.as_target G.window) in
   Console.(log [ str "Resources loaded." ]);
-  ignore (init_page switch libs execute);
+  ignore (init_page opamurl switch libs execute);
 
   Fut.return ()
 

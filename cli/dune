@@ -4,9 +4,9 @@
  (package odoc_notebook)
  (preprocess
   (pps ppx_deriving_yojson))
- (modules cmd_outputs html_page mk_backend mk_frontend notebook_css ocamlfind odoc_notebook odoc opam run util worker_pool)
+ (modules cmd_outputs html_page mk_frontend notebook_css odoc_notebook odoc run util worker_pool)
  (link_flags (-linkall))
- (libraries cmdliner rpclib.json odoc.odoc bos mustache eio_main eio findlib opam-format js_top_worker-rpc logs logs.fmt ))
+ (libraries cmdliner frontend_crunch rpclib.json odoc.odoc bos mustache eio_main eio findlib opam-format js_top_worker-rpc logs logs.fmt ))
 
 (executable
  (name odoc_notebook_test)

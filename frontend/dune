@@ -1,20 +1,10 @@
-; (executable
-;  (modes js)
-;  (name main)
-;  (modules main)
-;  (promote (until-clean))
-;  (link_flags (-linkall))
-;  (libraries
-;   code-mirror
-;   astring
-;   js_top_worker-client_fut
-;   tyxml
-;   merlin-js.code-mirror
-;   toploop
-;   js_of_ocaml-lwt
-;   d3
-;   brr
-;   note.brr))
+ (executable
+  (modes js)
+  (name main)
+  (modules main)
+  (promote (until-clean))
+  (link_flags (-linkall))
+  (libraries frontend))
 
 (library
  (name frontend)
@@ -39,3 +29,14 @@
  (public_name odoc_notebook.toploop)
  (modules toploop)
  (wrapped false))
+
+(rule
+ (target frontend_crunch.ml)
+ (deps main.bc.js)
+ (action
+  (run ocaml-crunch . -m plain --ext js -o %{target} ))
+ )
+
+ (library 
+ (name frontend_crunch)
+( modules frontend_crunch))

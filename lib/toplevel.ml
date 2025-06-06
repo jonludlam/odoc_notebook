@@ -122,9 +122,8 @@ let init ~verbose:_ ~silent:_ ~verbose_findlib:_ ~directives:_ ~packages
   let result =
     U.init
       {
-        findlib_index = "";
         findlib_requires = deps;
-        stdlib_dcs = "";
+        stdlib_dcs = None;
         execute = true;
       }
     >>= fun () ->
