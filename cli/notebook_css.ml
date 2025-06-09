@@ -36,6 +36,10 @@ pre.stdout {
   display: none;
 }
 
+.at-tags > .merlinonly {
+  display: none;
+}
+
 .at-tags > .switch {
   display: none;
 }
