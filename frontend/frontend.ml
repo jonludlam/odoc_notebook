@@ -96,6 +96,7 @@ type ostate = {
   solution : string option;
   ty : block_ty;
   mime_only : bool;
+  execute : bool; (* true to enable 'run' button *)
   rpc : Js_top_worker_client_fut.rpc;
 }
 
@@ -110,6 +111,7 @@ let to_jv : ostate -> Jv.t =
         ("output_id", Jv.of_string x.output_id);
         ("ty", Jv.of_string (string_of_block_ty x.ty));
         ("mime_only", Jv.of_bool x.mime_only);
+        ("execute", Jv.of_bool x.execute);
       |]
   in
   Jv.set_if_some res "solution" (Option.map Jv.of_string x.solution);
@@ -124,7 +126,9 @@ let of_jv : Jv.t -> ostate =
   let ty = Jv.get jv "ty" |> Jv.to_string |> block_ty_of_string in
   let hidden = Jv.get jv "hidden" |> Jv.to_bool in
   let mime_only = Jv.get jv "mime_only" |> Jv.to_bool in
-  { id; output_id; rpc; solution; ty; mime_only; hidden }
+  let execute = Jv.get jv "execute" |> Jv.to_bool in
+{ id; output_id; rpc; solution; ty; mime_only; hidden; execute }
+
 
 let oeffect = Code_mirror.State.StateEffect.define to_jv of_jv
 let autorun_effect = Code_mirror.State.StateEffect.define Jv.of_bool Jv.to_bool
@@ -259,7 +263,7 @@ let panel_constructor (st : ostate) (v : Code_mirror.View.EditorView.t) =
   let run_button =
     Brr.El.(button ~at:[ At.class' (Jstr.v "panel") ] [ txt (Jstr.v "Run") ])
   in
-  let run = match st.ty with Other -> [] | _ -> [ run_button ] in
+  let run = match st.ty, st.execute with Other, _ -> [] | _, false -> [] | _ -> [ run_button ] in
   (* let autorun_txt autorun =
     if autorun
     then Jstr.v "Autorun: On"
@@ -370,7 +374,7 @@ let init ?doc ?(exts = []) () =
   let view : View.EditorView.t = View.EditorView.create ~config () in
   (state, view)
 
-let make_editor rpc id elt =
+let make_editor execute rpc id elt =
   let parent_exn elt =
     match El.parent elt with Some e -> e | None -> failwith "no parent"
   in
@@ -444,6 +448,7 @@ let make_editor rpc id elt =
           ty;
           mime_only;
           hidden;
+          execute;
         })
   in
   if hidden then
@@ -509,7 +514,7 @@ let init_page opamurl switch requires execute =
     El.fold_find_by_selector (fun x y -> x :: y) (Jstr.v "pre code") []
     |> List.rev
   in
-  let _editors = List.mapi (make_editor rpc) ocaml_elts in
+  let _editors = List.mapi (make_editor execute rpc) ocaml_elts in
 
   (* List.iteri (fun n x -> exec_js (Printf.sprintf "id_%d" (n + 1)) x) elts; *)
   (* let sections = get_sections () in
@@ -576,12 +581,15 @@ let main _requires =
       (fun x y ->
         List.map (fun x -> El.txt_text x |> Jstr.to_string) (El.children x)
         @ y)
-      (Jstr.v ".at-tags > .opamurl")
+      (Jstr.v ".at-tags > .opamurl > p")
       []
   in
   let opamurl = match opamurl with
   | [] -> None
-  | x :: _ -> Some x in
+  | x :: _ ->
+    Console.(log [str ("Got opamurl:" ^ x)]);
+    Some x
+  in
   let execute = match merlin_only with [] -> true | _ -> false in
   Console.(log [ str ("Execute: " ^ string_of_bool execute) ]);
   Console.(log [ str "DOM content loaded." ]);
