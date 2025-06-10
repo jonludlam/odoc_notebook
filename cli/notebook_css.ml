@@ -14,7 +14,6 @@ div.editor {
   border: 1px solid #2d2f3f;
   padding: 5px;
   border-radius: 5px;
-  max-width: 700px;
 }
 
 div.odoc-src-output {
@@ -56,6 +55,18 @@ pre.stdout {
 
 .at-tags > .published > p::before {
     content: "Published: ";
+}
+
+@media only screen and (max-width: 210ex) {
+ div.editor {
+    max-width: 50vw;
+  }
+}
+
+@media only screen and (max-width: 110ex) {
+  div.editor {
+      max-width: 80vw;
+  }
 }
 
 |}
