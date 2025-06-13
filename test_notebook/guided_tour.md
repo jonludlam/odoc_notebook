@@ -140,7 +140,7 @@ val x' : int = 8
 
 The following examples, however, are not legal:
 
-```ocaml env=main
+```ocaml env=main nodep
 # let Seven = 3 + 4;;
 Line 1, characters 5-10:
 Error: Unbound constructor Seven
@@ -385,7 +385,7 @@ Both `long_string` and `big_number` are functions, and each is passed to
 the first example, and integers in the second). But we can't mix and match
 two different concrete types for `'a` in the same use of `first_if_true`:
 
-```ocaml env=main
+```ocaml env=main nodep
 # first_if_true big_number "short" "loooooong";;
 Line 1, characters 26-33:
 Error: This expression has type string but an expression was expected of type
@@ -409,7 +409,7 @@ Working in the toplevel somewhat obscures the difference between runtime and
 compile-time errors, but that difference is still there. Generally, type
 errors like this one:
 
-```ocaml env=main
+```ocaml env=main nodep
 # let add_potato x =
     x + "potato";;
 Line 2, characters 9-17:
@@ -422,7 +422,7 @@ are compile-time errors (because `+` requires that both its arguments be of
 type `int`), whereas errors that can't be caught by the type system, like
 division by zero, lead to runtime exceptions:
 
-```ocaml env=main
+```ocaml env=main nodep
 # let is_a_multiple x y =
     x % y = 0;;
 val is_a_multiple : int -> int -> bool = <fun>

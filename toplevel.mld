@@ -1,8 +1,23 @@
 {0 Toplevel test}
 
+@opamurl https://jon-test.ludl.am/_opam/
+@merlinonly
+@libs base
+
 {@ocamltop[
-# Printf.printf "Hello, world!\n";;
-foo bar baz
+# let rec fact n =
+    match n with
+    | 0 -> 1
+    | n -> n * fact (n-1);;
+  val fact : int -> int = <fun>
 # Printf.printf "Here we go!\n";;
+  Here we go!
+  - : unit = ()
 ]}
+
+{@ocamltop[
+# fact 10;;
+  - : int = 3628800
+]}
+
 
