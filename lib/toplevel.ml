@@ -1,4 +1,3 @@
-open Js_top_worker_rpc
 module M = Idl.IdM (* Server is synchronous *)
 module IdlM = Idl.Make (M)
 
@@ -69,6 +68,7 @@ module UnixWorker = struct
   let get_stdlib_dcs _ = []
   let findlib_init _ = ()
 
+  let path = "/tmp/"
   let require _ () packages =
     try
       let eff_packages =

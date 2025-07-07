@@ -6,12 +6,12 @@
 ; (rule
 ;  (with-stdout-to
 ;   test.mld.out
-;   (run odoc_notebook test %{dep:test.mld})))
+;   (run odoc_notebook_test %{dep:test.mld})))
 
 ; (rule
 ;  (with-stdout-to
 ;   mime_test.mld.out
-;   (run odoc_notebook test %{dep:mime_test.mld})))
+;   (run odoc_notebook_test %{dep:mime_test.mld})))
 
 ; (rule
 ;  (alias runtest)

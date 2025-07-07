@@ -104,7 +104,7 @@ let generate output_dir_str odoc_dir files =
           let libs = try List.assoc "libs" frontmatter.other_config |> Astring.String.fields ~empty:false with Not_found -> [] in
           libs
         | Ok _ -> []
-        | Error (`Msg m) -> []
+        | Error (`Msg _m) -> []
       in
       let libs_list = "stdlib" :: libs_list in
       let libs =
@@ -252,7 +252,7 @@ let generate output_dir_str odoc_dir files =
             in
             let post_content = "" in
             Format.eprintf "Creating html page\n%!";
-            let dir, file = Fpath.split_base (Fpath.v mld) in
+            let dir, _file = Fpath.split_base (Fpath.v mld) in
             let parent_id = Fpath.(normalize dir) in
             (* Format.eprintf "Parent id: %a\n%!" Fpath.pp parent_id; *)
             let globaltoc = globaltoc parent_id in

@@ -13,5 +13,5 @@ let test_cmd =
   let info = Cmd.info "test" ~doc:"Test an mld file" in
   Cmd.v info Term.(ret (const test $ files))
 
-let main_cmd =
+let _ =
   exit (Cmd.eval test_cmd)

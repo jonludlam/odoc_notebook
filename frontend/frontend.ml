@@ -37,7 +37,7 @@ let styled_text tstyle text =
     (fun l -> El.(span ~at:[ At.style (Jstr.v tstyle) ] [ txt' (l ^ "\n") ]))
     non_empty
 
-let mime_els id mime_vals =
+let mime_els _id mime_vals =
   List.map
     (fun mime ->
       let l = Astring.String.cuts ~sep:"/" mime.Toplevel_api_gen.mime_type in

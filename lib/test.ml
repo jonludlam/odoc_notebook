@@ -19,7 +19,7 @@ let handle_toplevel (block : Blocks.Block.code_block) =
   in
   let res = Toplevel.eval_toplevel () stripped in
   match res with
-  | Ok { Js_top_worker_rpc.Toplevel_api_gen.script = content_txt; mime_vals } ->
+  | Ok { Js_top_worker_rpc.Toplevel_api_gen.script = content_txt; mime_vals; parts=_ } ->
       Format.eprintf "Evaluated some toplevel OCaml code: %s\n%!" content_txt;
       if List.length mime_vals = 0 then Format.eprintf "No MIME values\n%!";
       let changed = String.compare content_txt stripped in
