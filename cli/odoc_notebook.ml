@@ -55,7 +55,7 @@ let generate output_dir_str odoc_dir files =
   let verbose = true in
   Eio_main.run @@ fun env ->
   Eio.Switch.run @@ fun sw ->
-  if verbose then Logs.set_level (Some Logs.Info);
+  if verbose then Logs.set_level (Some Logs.Debug);
   Logs.set_reporter (Logs_fmt.reporter ());
   let () = Worker_pool.start_workers env sw 16 in
   let output_dir = Fpath.v output_dir_str in
@@ -96,20 +96,23 @@ let generate output_dir_str odoc_dir files =
       let dir, file = Fpath.split_base (Fpath.v mld) in
       let x = Fpath.set_ext ".odoc" file in
       let odoc_file = "page-" ^ Fpath.to_string x in
-      let odoc_path = Fpath.(append odoc_dir dir) in
-      let odoc_unit = Odoc_odoc.Odoc_file.load odoc_path in
+      let odoc_path = Fpath.(odoc_dir // dir) in
+      let odoc_unit = Odoc_odoc.Odoc_file.load Fpath.(odoc_path / odoc_file) in
       let libs_list = match odoc_unit with
         | Ok {content=Page_content p; _} ->
           let frontmatter = p.frontmatter in
+          Logs.debug (fun m -> m "Frontmatter other-config for page: %s = %a" (Fpath.to_string (Fpath.v mld)) (Fmt.Dump.list (Fmt.Dump.pair Fmt.Dump.string Fmt.Dump.string)) frontmatter.other_config);
+          (* Extract libraries from the frontmatter *)
           let libs = try List.assoc "libs" frontmatter.other_config |> Astring.String.fields ~empty:false with Not_found -> [] in
           libs
         | Ok _ -> []
-        | Error (`Msg _m) -> []
+        | Error (`Msg x) -> Logs.err (fun m -> m "Failed to read frontmatter for page: %s - %s" (Fpath.to_string (Fpath.v mld)) x); []
       in
+      Logs.debug (fun m -> m "Libraries for page: %s = %s" (Fpath.to_string (Fpath.v mld)) (String.concat ", " libs_list));
       let libs_list = "stdlib" :: libs_list in
       let libs =
         List.filter_map
-          (fun lib_name -> try Some (lib_name, Util.StringMap.find lib_name lib_map) with _ -> None)
+          (fun lib_name -> try Some (lib_name, Util.StringMap.find lib_name lib_map) with _ -> Logs.err (fun m -> m "Failed to find library: %s" lib_name); None)
           libs_list
       in
       Odoc.link
