@@ -547,6 +547,8 @@ let init_page opamurl switch requires execute =
 open Fut.Syntax
 
 let notebook_main () =
+  Console.(log [str "Is a notebook!"]);
+
   let libs = 
     El.fold_find_by_selector
       (fun x y ->
@@ -604,7 +606,9 @@ let main _requires =
     El.find_first_by_selector
       (Jstr.v ".at-tags > .notanotebook > p") |> Option.is_none
   in
-  if is_a_notebook then notebook_main () else Fut.return ()
+  if is_a_notebook
+  then notebook_main ()
+  else (Console.(log [ str "Not a notebook" ]);Fut.return ())
 
 
 (* let _ =
