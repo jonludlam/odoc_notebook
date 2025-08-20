@@ -35,6 +35,10 @@ pre.stdout {
   display: none;
 }
 
+.at-tags > .notanotebook {
+  display: none;
+}
+
 .at-tags > .merlinonly {
   display: none;
 }

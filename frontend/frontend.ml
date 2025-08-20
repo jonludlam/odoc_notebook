@@ -546,7 +546,7 @@ let init_page opamurl switch requires execute =
 
 open Fut.Syntax
 
-let main _requires =
+let notebook_main () =
   let libs = 
     El.fold_find_by_selector
       (fun x y ->
@@ -598,6 +598,14 @@ let main _requires =
   ignore (init_page opamurl switch libs execute);
 
   Fut.return ()
+
+let main _requires =
+  let is_a_notebook =
+    El.find_first_by_selector
+      (Jstr.v ".at-tags > .notanotebook > p") |> Option.is_none
+  in
+  if is_a_notebook then notebook_main () else Fut.return ()
+
 
 (* let _ =
   let _ = Console.debug [ Jv.of_string "global cmis = " ] in
