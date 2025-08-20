@@ -604,7 +604,7 @@ let notebook_main () =
 let main _requires =
   let is_a_notebook =
     El.find_first_by_selector
-      (Jstr.v ".at-tags > .notanotebook > p") |> Option.is_none
+      (Jstr.v ".at-tags > .notanotebook ") |> Option.is_none
   in
   if is_a_notebook
   then notebook_main ()
