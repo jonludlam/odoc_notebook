@@ -410,6 +410,8 @@ let make_editor execute rpc id elt =
       str_classes None
   in
   let mime_only = List.mem "mime-only" str_classes in
+  let norun = List.mem "norun" str_classes in
+  let execute = execute && not norun in
   (* let is_deferred = List.mem "deferred-js" str_classes in *)
   let ty =
     if List.mem "language-ocaml" str_classes then OCaml
