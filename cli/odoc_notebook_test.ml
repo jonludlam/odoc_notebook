@@ -1,6 +1,6 @@
 
 let test files =
-  match Odoc_notebook_lib.Test.run files with
+  match Lwt_main.run (Odoc_notebook_lib.Test.run files) with
   | Ok () -> `Ok ()
   | Error (`Msg m) ->
       Format.eprintf "Error: %s\n%!" m;

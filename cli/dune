@@ -15,4 +15,4 @@
  (modes byte)
  (modules odoc_notebook_test)
  (link_flags (-linkall))
- (libraries cmdliner odoc_notebook_lib rpclib.json odoc.odoc))
+ (libraries cmdliner odoc_notebook_lib rpclib.json odoc.odoc lwt.unix))

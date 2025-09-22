@@ -1,5 +1,4 @@
-module M = Idl.IdM (* Server is synchronous *)
-module IdlM = Idl.Make (M)
+(* module IdlM = Idl.Make (Lwt) *)
 
 let handle_findlib_error = function
   | Failure msg -> Printf.fprintf stderr "%s" msg
@@ -62,11 +61,12 @@ module UnixWorker = struct
   type findlib_t = unit
 
   let sync_get _ = None
+  let async_get _ = Lwt.return (Error (`Msg "Not implemented"))
   let create_file ~name:_ ~content:_ = failwith "Not implemented"
   let import_scripts = function [] -> () | _ -> failwith "Unimplemented 1"
   let init_function _ = failwith "Unimplemented 2"
   let get_stdlib_dcs _ = []
-  let findlib_init _ = ()
+  let findlib_init _ = Lwt.return ()
 
   let path = "/tmp/"
   let require _ () packages =
@@ -85,7 +85,7 @@ module U = Js_top_worker.Impl.Make (UnixWorker)
 
 (* open Bos *)
 
-type directive = Directory of string | Load of string
+type directive = Directorury of string | Load of string
 
 let init_findlib () = Findlib.init ()
 
@@ -108,9 +108,11 @@ let get_dir lib =
 
 type t = unit
 
+open Lwt_result
+open Lwt_result.Infix
+
 let init ~verbose:_ ~silent:_ ~verbose_findlib:_ ~directives:_ ~packages
     ~predicates:_ () =
-  let open IdlM.ErrM in
   init_findlib ();
   let deps =
     match deps packages with
@@ -119,7 +121,6 @@ let init ~verbose:_ ~silent:_ ~verbose_findlib:_ ~directives:_ ~packages
         Format.eprintf "Error getting dependencies: %s\n%!" m;
         failwith "error"
   in
-  let result =
     U.init
       {
         findlib_requires = deps;
@@ -128,29 +129,17 @@ let init ~verbose:_ ~silent:_ ~verbose_findlib:_ ~directives:_ ~packages
       }
     >>= fun () ->
     U.setup () >>= fun _ -> return ()
-  in
-  match result |> IdlM.T.get |> M.run with
-  | Ok x -> x
-  | Error (InternalError e) ->
-      Format.eprintf "Bad stuff here! '%s'\n%!" e;
-      failwith "error"
 
 let eval () list =
-  match U.execute (String.concat "\n" list) |> IdlM.T.get |> M.run with
-  | Ok r ->
-      Ok
-        ( r.mime_vals,
-          Option.to_list r.stdout @ Option.to_list r.stderr
-          @ Option.to_list r.caml_ppf )
-  | Error _e -> Error [ "error" ]
+  let open Rpc_lwt.ErrM in
+  (U.execute (String.concat "\n" list) >>= fun r -> 
+  return ( r.mime_vals,
+    Option.to_list r.stdout @ Option.to_list r.stderr
+    @ Option.to_list r.caml_ppf )) |> Rpc_lwt.T.get
 
-let eval_toplevel () str = U.exec_toplevel str |> IdlM.T.get |> M.run
+let eval_toplevel () str = U.exec_toplevel str |> Rpc_lwt.T.get
 
 let compile_js () id str =
-  match U.compile_js id str |> IdlM.T.get |> M.run with
-  | Ok r -> Ok r
-  | Error (InternalError m) ->
-      Format.eprintf "Bad stuff here this time! '%s'\n%!" m;
-      Error [ "Error in compile_js" ]
-
+  U.compile_js id str |> Rpc_lwt.T.get
+ 
 let in_env _ f = f ()

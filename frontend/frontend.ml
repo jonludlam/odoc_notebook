@@ -411,6 +411,7 @@ let make_editor execute rpc id elt =
   in
   let mime_only = List.mem "mime-only" str_classes in
   let norun = List.mem "norun" str_classes in
+  let nomerlin = List.mem "nomerlin" str_classes in
   let execute = execute && not norun in
   (* let is_deferred = List.mem "deferred-js" str_classes in *)
   let ty =
@@ -428,12 +429,12 @@ let make_editor execute rpc id elt =
   let mid = Some (cell_id id) in
   let mdeps = deps id in
   let merlin_extensions =
+    if nomerlin then [] else
     match ty with
     | OCaml | Deferred ->
         Merlin_codemirror.[ autocomplete rpc mid mdeps false; linter rpc mid mdeps false; tooltip_on_hover rpc mid mdeps false ]
     | Toplevel -> 
         Merlin_codemirror.[ autocomplete rpc mid mdeps true; linter rpc mid mdeps true; tooltip_on_hover rpc mid mdeps true ]
-
     | Other -> []
   in
   let theme =

@@ -4,4 +4,4 @@
 ;  (libraries js_top_worker odoc_notebook.frontend))
 
 (cram
- (deps %{bin:odoc_notebook}))
+ (deps %{bin:odoc_notebook_test}))

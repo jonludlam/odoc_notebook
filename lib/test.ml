@@ -1,23 +1,24 @@
 (* Test an mld file. A mini mdx *)
+open Lwt
 
 let handle_ocaml (block : Blocks.Block.code_block) =
-  match Toplevel.eval () [ block.content_txt ] with
+  Toplevel.eval () [ block.content_txt ] >>= function
   | Ok (mime, out) ->
       Format.eprintf "Evaluated some OCaml code: %s\n%!"
         (String.concat "\n" out);
       if List.length mime = 0 then Format.eprintf "No MIME values\n%!";
       let output = List.map (fun x -> `Text (Mime_printer.to_odoc x)) mime in
-      { block with Blocks.Block.output }
+      Lwt.return { block with Blocks.Block.output }
   | Error e ->
       Format.eprintf "Got an error evaluating OCaml code\n%s%!"
         (String.concat "\n" e);
-      block
+      Lwt.return block
 
 let handle_toplevel (block : Blocks.Block.code_block) =
   let stripped, _ =
     Odoc_parser.codeblock_content block.code_block block.content_txt
   in
-  let res = Toplevel.eval_toplevel () stripped in
+  Toplevel.eval_toplevel () stripped >>= fun res ->
   match res with
   | Ok { Js_top_worker_rpc.Toplevel_api_gen.script = content_txt; mime_vals; parts=_ } ->
       Format.eprintf "Evaluated some toplevel OCaml code: %s\n%!" content_txt;
@@ -26,8 +27,9 @@ let handle_toplevel (block : Blocks.Block.code_block) =
       let output =
         List.map (fun x -> `Text (Mime_printer.to_odoc x)) mime_vals
       in
-      { block with Blocks.Block.content_txt; output; changed = changed <> 0 }
-  | Error _ -> block
+      Lwt.return { block with Blocks.Block.content_txt; output; changed = changed <> 0 }
+  | Error _ ->
+    Lwt.return block
 
 let handle_block (block : Blocks.Block.code_block) =
   let open Blocks.Block in
@@ -36,14 +38,14 @@ let handle_block (block : Blocks.Block.code_block) =
       let content_txt =
         Odoc_parser.codeblock_content block.code_block block.content_txt |> fst
       in
-      let block = handle_ocaml block in
+      handle_ocaml block >>= fun block -> Lwt.return
       { block with content_txt }
   | OCamlTop -> handle_toplevel block
   | Unknown _ ->
       let content_txt =
         Odoc_parser.codeblock_content block.code_block block.content_txt |> fst
       in
-      { block with content_txt }
+      Lwt.return { block with content_txt }
 
 let rec print_block fmt (block : Blocks.Block.code_block) =
   let block =
@@ -91,6 +93,7 @@ let rec print_block fmt (block : Blocks.Block.code_block) =
   | _ -> failwith "print_block: output without metadata"
 
 let test file =
+  let open Lwt.Infix in
   let mld = Mld.parse_mld file |> Result.get_ok in
   let blocks = Blocks.parse_mld mld |> Result.get_ok in
   let meta = Mld.frontmatter mld in
@@ -98,23 +101,38 @@ let test file =
     try List.assoc "libs" meta.other_config |> Astring.String.fields ~empty:false with Not_found -> []
   in
   Toplevel.init ~verbose:false ~silent:true ~verbose_findlib:false
-    ~directives:[] ~packages:libs ~predicates:[] ();
+    ~directives:[] ~packages:libs ~predicates:[] () >>=
+  function | Error e ->
+    Lwt.return (Error e)
+  |
+    Ok () ->
   let results =
-    List.fold_left
+    Lwt_list.fold_left_s
       (fun acc block ->
         match block with
-        | `Text _ -> block :: acc
-        | `Block block -> `Block (handle_block block) :: acc)
+        | `Text _ -> Lwt.return (block :: acc)
+        | `Block block ->
+          let open Lwt.Infix in
+          handle_block block >>= fun b -> Lwt.return ((`Block b) :: acc))
       [] blocks
-    |> List.rev
   in
+  results >>= fun results ->
   List.iter
     (fun x ->
       match x with
       | `Text t -> Format.printf "%s" t
       | `Block b -> Format.printf "%a" print_block b)
-    results
+    (List.rev results);
+  Lwt_result.return ()
 
 let run files =
-  List.iter test files;
-  Ok ()
+  Lwt_list.map_s test files >>= fun results ->
+  match List.filter_map
+    (function Ok _ -> None | Error e -> Some e)
+    results with
+  | [] -> Lwt_result.return ()
+  | errs ->
+      let msgs =
+        List.map (function | Js_top_worker_rpc.Toplevel_api_gen.InternalError m -> m) errs |> String.concat "\n"
+      in
+      Lwt_result.fail (`Msg msgs)
